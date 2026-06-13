@@ -21,7 +21,7 @@ set -Eeuo pipefail
 
 INSTALL_DIR="${INSTALL_DIR:-/opt/a1-sms-gateway}"
 INSTALL_REF="${INSTALL_REF:-main}"
-INSTALL_REPO="${INSTALL_REPO:-https://github.com/a1techflow/a1-sms-gateway.git}"
+INSTALL_REPO="${INSTALL_REPO:-https://github.com/pcitservice/a1-sms-gateway.git}"
 DOMAIN="${DOMAIN:-sms.a1techflow.com}"
 LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-admin@a1techflow.com}"
 COMPOSE_PROJECT="${COMPOSE_PROJECT:-a1-sms}"
