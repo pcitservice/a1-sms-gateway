@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class BootstrapAdmin extends Command
 {
-    protected $signature   = 'a1:bootstrap-admin {email?} {--password=} {--no-interaction}';
+    protected $signature   = 'a1:bootstrap-admin {email?} {--password=}';
     protected $description = 'Create the first super-admin user + workspace. Uses BOOTSTRAP_ADMIN_* env if no flags.';
 
     public function handle(): int

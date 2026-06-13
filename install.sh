@@ -171,7 +171,7 @@ step_migrate_seed() {
   cd "$INSTALL_DIR"
   log "Running migrations + seeders"
   COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT" docker compose exec -T api php artisan migrate --force --seed --no-interaction
-  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT" docker compose exec -T api php artisan a1:bootstrap-admin --no-interaction || true
+  COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT" docker compose exec -T api php artisan a1:bootstrap-admin || true
   ok "Database migrated + seeded"
 }
 
