@@ -218,18 +218,31 @@ step_firewall() {
     warn "SKIP_FIREWALL set — skipping ufw/fail2ban"
     return
   fi
-  log "Configuring UFW"
-  ufw --force reset >/dev/null
-  ufw default deny incoming
-  ufw default allow outgoing
-  ufw allow 22/tcp
-  ufw allow 80/tcp
-  ufw allow 443/tcp
-  ufw --force enable
-  log "Configuring fail2ban jail"
-  install -m 0644 "$INSTALL_DIR/deploy/scripts/jail.a1sms.local" /etc/fail2ban/jail.d/a1sms.local
+
+  # ADDITIVE only — never reset existing rules. Other projects on this host
+  # may rely on their own UFW configuration, so we just ensure 22/80/443 are
+  # open and leave everything else alone.
+  if command -v ufw >/dev/null 2>&1; then
+    log "Ensuring UFW rules for 22, 80, 443 (additive, no reset)"
+    ufw allow 22/tcp  >/dev/null 2>&1 || true
+    ufw allow 80/tcp  >/dev/null 2>&1 || true
+    ufw allow 443/tcp >/dev/null 2>&1 || true
+    if ufw status | grep -q "Status: inactive"; then
+      # Only enable UFW if no other project has touched it yet.
+      log "UFW was inactive — enabling now"
+      ufw --force enable
+    else
+      ok "UFW already active — left existing rules untouched"
+    fi
+  else
+    warn "ufw not installed — skipping firewall config"
+  fi
+
+  log "Configuring fail2ban jail (namespaced: a1sms.local)"
+  install -m 0644 "$INSTALL_DIR/deploy/scripts/jail.a1sms.local"          /etc/fail2ban/jail.d/a1sms.local
+  install -m 0644 "$INSTALL_DIR/deploy/scripts/filter.a1sms-nginx-auth.conf" /etc/fail2ban/filter.d/a1sms-nginx-auth.conf
   systemctl restart fail2ban
-  ok "Firewall + fail2ban active"
+  ok "Firewall + fail2ban active (other projects' rules preserved)"
 }
 
 step_cron_backups() {
