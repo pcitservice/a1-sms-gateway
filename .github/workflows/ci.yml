@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: a1sms
+          POSTGRES_PASSWORD: secret
+          POSTGRES_DB: a1sms_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U a1sms"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, intl, pdo_pgsql, redis
+          coverage: none
+          tools: composer:v2
+      - name: Install
+        working-directory: api
+        run: |
+          composer install --prefer-dist --no-progress --no-interaction
+          cp .env.example .env || cp ../.env.example .env || true
+          php artisan key:generate
+      - name: Test
+        working-directory: api
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_USERNAME: a1sms
+          DB_PASSWORD: secret
+          DB_DATABASE: a1sms_test
+          REDIS_HOST: 127.0.0.1
+          QUEUE_CONNECTION: sync
+        run: ./vendor/bin/pest --colors=always
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm', cache-dependency-path: 'web/package-lock.json' }
+      - working-directory: web
+        run: |
+          npm ci --no-audit --no-fund
+          npm run lint
+          npm run build

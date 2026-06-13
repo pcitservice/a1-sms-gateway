@@ -1,0 +1,34 @@
+# Overlay used during local development. Run with:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  api:
+    build:
+      target: base
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      LOG_LEVEL: debug
+    volumes:
+      - ./api:/var/www/html
+      - api_storage:/var/www/html/storage
+
+  web:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8100/api/v1
+    environment:
+      NODE_ENV: development
+    command: ["npm", "run", "dev"]
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    networks: [a1sms]

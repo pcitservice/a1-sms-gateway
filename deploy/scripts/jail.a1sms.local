@@ -1,0 +1,21 @@
+[DEFAULT]
+bantime  = 1h
+findtime = 10m
+maxretry = 5
+backend  = systemd
+
+[a1sms-nginx-auth]
+enabled  = true
+port     = http,https
+filter   = a1sms-nginx-auth
+logpath  = /var/log/nginx/access.log
+maxretry = 10
+findtime = 5m
+bantime  = 6h
+
+[sshd]
+enabled  = true
+port     = ssh
+filter   = sshd
+maxretry = 5
+bantime  = 24h

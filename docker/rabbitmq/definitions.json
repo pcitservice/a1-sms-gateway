@@ -1,0 +1,20 @@
+{
+  "rabbit_version": "3.13",
+  "vhosts": [{ "name": "/" }],
+  "exchanges": [
+    { "name": "sms.outbound", "vhost": "/", "type": "direct", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
+    { "name": "sms.inbound",  "vhost": "/", "type": "direct", "durable": true, "auto_delete": false, "internal": false, "arguments": {} },
+    { "name": "webhooks",     "vhost": "/", "type": "direct", "durable": true, "auto_delete": false, "internal": false, "arguments": {} }
+  ],
+  "queues": [
+    { "name": "sms.outbound", "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "sms.outbound.dlx" } },
+    { "name": "sms.inbound",  "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} },
+    { "name": "webhooks",     "vhost": "/", "durable": true, "auto_delete": false, "arguments": { "x-dead-letter-exchange": "webhooks.dlx" } },
+    { "name": "default",      "vhost": "/", "durable": true, "auto_delete": false, "arguments": {} }
+  ],
+  "bindings": [
+    { "source": "sms.outbound", "vhost": "/", "destination": "sms.outbound", "destination_type": "queue", "routing_key": "sms.outbound", "arguments": {} },
+    { "source": "sms.inbound",  "vhost": "/", "destination": "sms.inbound",  "destination_type": "queue", "routing_key": "sms.inbound",  "arguments": {} },
+    { "source": "webhooks",     "vhost": "/", "destination": "webhooks",     "destination_type": "queue", "routing_key": "webhooks",     "arguments": {} }
+  ]
+}

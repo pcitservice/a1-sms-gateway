@@ -1,0 +1,12 @@
+[Unit]
+Description=A1 SMS Gateway health probe
+After=network.target docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/a1-sms-healthcheck
+Environment=INSTALL_DIR=/opt/a1-sms-gateway
+Environment=COMPOSE_PROJECT=a1-sms
+Environment=DOMAIN=sms.a1techflow.com
+StandardOutput=journal
+StandardError=journal
