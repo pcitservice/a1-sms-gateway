@@ -175,7 +175,16 @@ step_migrate_seed() {
   ok "Database migrated + seeded"
 }
 
+detect_cyberpanel() {
+  [ -d /usr/local/CyberCP ] || [ -d /usr/local/lsws ]
+}
+
 step_nginx_vhost() {
+  if detect_cyberpanel; then
+    warn "CyberPanel/OpenLiteSpeed detected — skipping host nginx vhost."
+    warn "You must add a reverse proxy in CyberPanel (see deploy/cyberpanel/README.md)."
+    return 1
+  fi
   if [ -d /etc/nginx/sites-available ] && command -v nginx >/dev/null 2>&1; then
     log "Installing host Nginx vhost for $DOMAIN"
     install -m 0644 "$INSTALL_DIR/deploy/nginx/sms.a1techflow.com.conf" \
@@ -193,6 +202,11 @@ step_nginx_vhost() {
 step_tls() {
   if [ -n "${SKIP_TLS:-}" ]; then
     warn "SKIP_TLS set — skipping certbot"
+    return
+  fi
+  if detect_cyberpanel; then
+    warn "CyberPanel detected — leaving TLS to CyberPanel's Let's Encrypt integration."
+    warn "Make sure 'Issue SSL' has been clicked on the $DOMAIN site in CyberPanel."
     return
   fi
   if ! command -v certbot >/dev/null 2>&1; then

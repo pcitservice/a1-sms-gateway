@@ -16,6 +16,14 @@ On the VPS as `root`:
 curl -fsSL https://install.sms.a1techflow.com/install.sh | bash
 ```
 
+### Deploying behind CyberPanel / OpenLiteSpeed
+
+If the VPS already runs CyberPanel (very common on Hostinger), the
+installer auto-detects it and skips its own nginx + certbot. Follow
+[deploy/cyberpanel/README.md](../deploy/cyberpanel/README.md) for the
+3-step CyberPanel-side setup (create site → paste rewrite rules → paste
+vhost snippet → restart OLS).
+
 The installer streams its progress; you can re-run it any time — it's
 idempotent and will upgrade in place. Run with `INSTALL_REF=branch-name`
 to install from a non-default branch.

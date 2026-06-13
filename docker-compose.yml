@@ -153,9 +153,11 @@ services:
   nginx:
     image: nginx:1.27-alpine
     <<: *restart
+    # Bound to loopback so a fronting webserver (CyberPanel/OpenLiteSpeed,
+    # standalone Nginx, Cloudflare Tunnel, etc.) is the only public ingress.
     ports:
-      - "${NGINX_HTTP_PORT:-8181}:80"
-      - "${NGINX_HTTPS_PORT:-8443}:443"
+      - "127.0.0.1:${NGINX_HTTP_PORT:-8181}:80"
+      - "127.0.0.1:${NGINX_HTTPS_PORT:-8443}:443"
     volumes:
       - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
