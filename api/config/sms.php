@@ -37,6 +37,17 @@ return [
 
     'enable_mock' => filter_var(env('GATEWAY_ENABLE_MOCK', false), FILTER_VALIDATE_BOOL),
 
+    'mqtt' => [
+        'host'            => env('MQTT_HOST', 'mosquitto'),
+        'port'            => (int) env('MQTT_PORT', 1883),
+        'admin_user'      => env('MQTT_ADMIN_USER', 'a1sms-broker'),
+        'admin_password'  => env('MQTT_ADMIN_PASSWORD', 'change-me'),
+        'public_host'     => env('MQTTS_PUBLIC_HOST', 'sms.a1techflow.com'),
+        'public_port'     => (int) env('MQTTS_HOST_PORT', 8883),
+        // Heartbeat older than this = agent considered offline.
+        'heartbeat_ttl'   => 90,
+    ],
+
     'webhook' => [
         'signing_secret' => env('WEBHOOK_SIGNING_SECRET'),
         'attempts'       => 8,

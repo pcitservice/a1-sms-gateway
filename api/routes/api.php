@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AgentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\AutomationController;
 use App\Http\Controllers\Api\V1\CampaignController;
@@ -31,6 +32,10 @@ Route::prefix('v1')->group(function () {
     // Inbound webhooks from external systems.
     Route::post('webhooks/stripe',  [StripeWebhookController::class,  'handle']);
     Route::post('webhooks/trb140',  [Trb140WebhookController::class,  'handle'])->middleware('webhook.signed');
+
+    // TRB140 agent config fetch — signed URL, no bearer token.
+    Route::get('agent/config/{gateway}', [AgentController::class, 'config'])
+        ->name('agent.config');
 
     Route::middleware(['auth:sanctum', 'team', 'verified.2fa'])->group(function () {
         Route::post('auth/logout',  [AuthController::class, 'logout']);

@@ -19,6 +19,7 @@ web/node_modules/
 web/.vercel/
 docker/.data/
 docker/.certbot/
+docker/mosquitto/passwd
 deploy/secrets/
 *.swp
 *.swo

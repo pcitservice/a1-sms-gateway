@@ -35,6 +35,9 @@ COPY api/composer.json api/composer.lock* ./
 RUN composer install --no-dev --prefer-dist --no-scripts --no-autoloader || true
 
 COPY api/ .
+# Publish the TRB140 agent files under public/agent so the RutOS installer
+# can `curl https://sms.a1techflow.com/agent/gateway_agent.py` etc.
+COPY deploy/trb140 ./public/agent
 
 RUN composer install --no-dev --prefer-dist --optimize-autoloader --no-scripts \
     && mkdir -p storage/framework/cache/data storage/framework/sessions \

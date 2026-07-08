@@ -6,6 +6,7 @@ use App\Domain\Gateway\Contracts\SmsGateway;
 use App\Domain\Gateway\Drivers\HuaweiDriver;
 use App\Domain\Gateway\Drivers\MockDriver;
 use App\Domain\Gateway\Drivers\Trb140Driver;
+use App\Domain\Gateway\Drivers\Trb140MqttDriver;
 use App\Domain\Gateway\GatewayManager;
 use App\Models\Gateway;
 use GuzzleHttp\Client as HttpClient;
@@ -37,6 +38,14 @@ class GatewayServiceProvider extends ServiceProvider
 
             $manager->extend('huawei', function (Gateway $row) use ($app) {
                 return new HuaweiDriver($row, $app['log']->channel());
+            });
+
+            $manager->extend('trb140-mqtt', function (Gateway $row) use ($app) {
+                return new Trb140MqttDriver(
+                    row: $row,
+                    cache: $app['cache']->store(),
+                    logger: $app['log']->channel(),
+                );
             });
 
             $manager->extend('mock', function (Gateway $row) use ($app) {

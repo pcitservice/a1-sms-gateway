@@ -1,0 +1,10 @@
+# A1 SMS Gateway — Mosquitto ACL
+# The api service user gets full access; each device only gets its own topics.
+# Devices are added dynamically by the auto-provisioner (Gateway::creating)
+# which appends `user dev-<device_id>` blocks below.
+
+user a1sms-broker
+topic readwrite #
+
+# Devices append below this line — do not remove the marker.
+# --- device ACLs ---

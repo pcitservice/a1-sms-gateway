@@ -29,6 +29,13 @@ case "$role" in
   horizon)
     exec php artisan horizon
     ;;
+  mqtt_listener)
+    # Cycle every hour so long-lived TCP connections don't rot.
+    while true; do
+      php artisan a1:mqtt:listen --max-runtime=3600 || echo "listener exited $?" >&2
+      sleep 2
+    done
+    ;;
   artisan)
     shift || true
     exec php artisan "$@"

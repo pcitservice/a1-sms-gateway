@@ -13,20 +13,23 @@ class Gateway extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'team_id', 'name', 'kind', 'host', 'port', 'protocol',
+        'team_id', 'name', 'kind', 'device_id', 'host', 'port', 'protocol',
         'username', 'password', 'modem_id', 'ssh_enabled', 'ssh_key_ref',
+        'mqtt_username', 'mqtt_password',
         'rate_per_minute', 'daily_cap', 'status', 'health', 'last_seen_at',
-        'is_primary',
+        'agent_last_seen_at', 'agent_version', 'is_primary',
     ];
 
     protected function casts(): array
     {
         return [
-            'password'      => 'encrypted',
-            'ssh_enabled'   => 'boolean',
-            'is_primary'    => 'boolean',
-            'health'        => 'array',
-            'last_seen_at'  => 'datetime',
+            'password'            => 'encrypted',
+            'mqtt_password'       => 'encrypted',
+            'ssh_enabled'         => 'boolean',
+            'is_primary'          => 'boolean',
+            'health'              => 'array',
+            'last_seen_at'        => 'datetime',
+            'agent_last_seen_at'  => 'datetime',
         ];
     }
 

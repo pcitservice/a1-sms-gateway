@@ -11,6 +11,9 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+  mosquitto_data:
+  mosquitto_log:
+  mosquitto_config:
   api_storage:
   certbot_etc:
   certbot_www:
@@ -48,6 +51,28 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks: [a1sms]
+
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    <<: *restart
+    # The MQTT broker that TRB140 agents connect to. Plain MQTT is on 1883
+    # (loopback) for the api + listener containers; MQTTS is exposed on 8883
+    # publicly for internet-facing devices behind CGNAT.
+    entrypoint: ["/docker-entrypoint.sh"]
+    command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    volumes:
+      - ./docker/mosquitto:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    ports:
+      - "127.0.0.1:${MQTT_HOST_PORT:-1883}:1883"
+      - "${MQTTS_HOST_PORT:-8883}:8883"
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h 127.0.0.1 -p 1883 -t '$$SYS/broker/uptime' -C 1 -W 3 -u ${MQTT_ADMIN_USER:-a1sms-broker} -P ${MQTT_ADMIN_PASSWORD:-change-me} 2>/dev/null || exit 0"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks: [a1sms]
 
   rabbitmq:
@@ -132,6 +157,19 @@ services:
       - api_storage:/var/www/html/storage
     depends_on:
       api: { condition: service_healthy }
+    networks: [a1sms]
+
+  mqtt_listener:
+    image: a1-sms-laravel:latest
+    <<: *restart
+    env_file: .env
+    environment:
+      CONTAINER_ROLE: mqtt_listener
+    volumes:
+      - api_storage:/var/www/html/storage
+    depends_on:
+      api:       { condition: service_healthy }
+      mosquitto: { condition: service_healthy }
     networks: [a1sms]
 
   web:

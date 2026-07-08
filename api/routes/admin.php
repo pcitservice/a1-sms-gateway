@@ -16,9 +16,10 @@ Route::prefix('api/v1/admin')->middleware(['auth:sanctum', 'admin'])->group(func
     Route::post  ('impersonation/stop',       [ImpersonationController::class, 'stop']);
 
     Route::apiResource('gateways', GatewayController::class);
-    Route::post  ('gateways/{gateway}/reboot',   [GatewayController::class, 'reboot']);
-    Route::post  ('gateways/{gateway}/reassign', [GatewayController::class, 'reassign']);
-    Route::get   ('gateways/{gateway}/health',   [GatewayController::class, 'health']);
+    Route::post  ('gateways/{gateway}/reboot',       [GatewayController::class, 'reboot']);
+    Route::post  ('gateways/{gateway}/reassign',     [GatewayController::class, 'reassign']);
+    Route::get   ('gateways/{gateway}/health',       [GatewayController::class, 'health']);
+    Route::get   ('gateways/{gateway}/agent-config', [GatewayController::class, 'agentConfig']);
 
     Route::get('financial/dashboard', [FinancialController::class, 'dashboard']);
     Route::get('financial/mrr',       [FinancialController::class, 'mrr']);

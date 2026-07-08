@@ -69,9 +69,28 @@ interface SmsGateway {
 
 Drivers:
 
-- `Trb140Driver` — Teltonika RUTOS HTTP API (`/api/login` → JWT, `/api/messages/actions/send`, `/api/messages/inbox`, `/api/system/info`, `/api/modem/status`). SSH/AT-command fallback for primitives RUTOS doesn't expose.
-- `HuaweiDriver` — Hilink HTTP API stub (E3372, B525). Implements the same contract.
-- `MockDriver` — in-memory, useful for dev/CI; persists to redis so multi-worker test runs see consistent state.
+- `Trb140Driver` — Teltonika RUTOS **HTTP push** (`/api/login` → JWT,
+  `/api/messages/actions/send`, `/api/messages/inbox`, …). Requires the VPS
+  to reach the device directly — LAN or VPN.
+- `Trb140MqttDriver` — Teltonika RUTOS **MQTT pull**. Device runs
+  `gateway_agent.py` and keeps a persistent outbound connection to our
+  Mosquitto broker. Publish `sms/outbound/{device_id}` and the agent picks
+  it up. Works behind CGNAT and consumer NAT. See [BYOD.md](./BYOD.md).
+- `HuaweiDriver` — Hilink HTTP API stub (E3372, B525).
+- `MockDriver` — in-memory, for dev/CI.
+
+### MQTT topic layout
+
+```
+sms/outbound/{device_id}   platform → device  (send this SMS)
+sms/control/{device_id}    platform → device  (reboot, reconfigure)
+sms/status/{device_id}     device → platform  (delivery status)
+sms/inbound/{device_id}    device → platform  (SMS received on the SIM)
+sms/heartbeat/{device_id}  device → platform  (keep-alive, signal, SIM)
+```
+
+The `a1:mqtt:listen` command (its own compose service) subscribes to
+`sms/{status,inbound,heartbeat}/#` and updates the DB accordingly.
 
 `GatewayManager` resolves drivers by `gateway.kind` column and caches authenticated clients in Redis.
 
