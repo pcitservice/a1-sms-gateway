@@ -16,8 +16,10 @@ class AgentController extends Controller
 {
     public function config(Request $request, int $gateway, MqttProvisioner $mqtt)
     {
-        if (! $request->hasValidSignature()) {
-            abort(401, 'Invalid or expired signed URL.');
+        $expected = (string) env('AGENT_CONFIG_TOKEN');
+        $provided = (string) $request->query('token');
+        if ($expected === '' || ! hash_equals($expected, $provided)) {
+            abort(401, 'Invalid or missing agent config token.');
         }
         $row = Gateway::query()->findOrFail($gateway);
         if ($row->kind !== 'trb140-mqtt') {
