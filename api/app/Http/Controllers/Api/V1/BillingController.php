@@ -53,7 +53,9 @@ class BillingController extends Controller
             [
                 'mode'                 => 'payment',
                 'currency'             => self::BUNDLE['currency'],
-                'customer_email'       => $request->user()->email,
+                // Cashier auto-creates/uses a Stripe customer for the team;
+                // passing customer_email here would 400 with "You may only
+                // specify one of these parameters: customer, customer_email".
                 'success_url'          => config('app.url').'/dashboard/billing?checkout=success',
                 'cancel_url'           => config('app.url').'/dashboard/billing?checkout=cancelled',
                 'payment_intent_data'  => [
