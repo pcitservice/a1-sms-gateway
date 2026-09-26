@@ -127,13 +127,17 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, email, password]
+              required: [name, email, password, country]
               properties:
                 name:      { type: string, maxLength: 120 }
                 email:     { type: string, format: email }
                 password:  { type: string, minLength: 10, description: "At least 10 chars with letters and numbers." }
                 team_name: { type: string, maxLength: 120 }
-                country:   { type: string, minLength: 2, maxLength: 2, example: DK }
+                country:
+                  type: string
+                  enum: [DK]
+                  description: "Currently restricted to Danish (DK) workspaces."
+                  example: DK
       responses:
         "201":
           description: Account created; a signup token is returned.

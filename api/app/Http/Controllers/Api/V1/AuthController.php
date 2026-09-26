@@ -25,7 +25,9 @@ class AuthController extends Controller
             'email'    => 'required|email|max:160|unique:users,email',
             'password' => ['required', PasswordRule::min(10)->letters()->numbers()],
             'team_name' => 'nullable|string|max:120',
-            'country'  => 'nullable|string|size:2',
+            'country'  => ['required', 'string', 'size:2', Rule::in(['DK'])],
+        ], [
+            'country.in' => 'The PCIT SMS Gateway is currently available for Danish businesses only.',
         ]);
 
         $user = DB::transaction(function () use ($data) {
