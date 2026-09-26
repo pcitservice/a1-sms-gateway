@@ -13,4 +13,8 @@ if [ ! -s "$PASSWD" ]; then
     mosquitto_passwd -b "$PASSWD" "$ADMIN_USER" "$ADMIN_PASS"
 fi
 
+# mosquitto drops to uid 1883 after start — file must be readable by that uid.
+chown 1883:1883 "$PASSWD" 2>/dev/null || true
+chown 1883:1883 /mosquitto/config/aclfile 2>/dev/null || true
+
 exec "$@"
