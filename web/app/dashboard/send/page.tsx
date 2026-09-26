@@ -11,13 +11,16 @@ import { api, getToken } from '@/lib/api';
 type Template = { id: number; name: string; body: string };
 
 export default function SendPage() {
-  const [to,      setTo]      = useState('');
-  const [message, setMessage] = useState('');
-  const [tplId,   setTplId]   = useState<string>('');
-  const [busy,    setBusy]    = useState(false);
-  const [result,  setResult]  = useState<{ ok: boolean; text: string } | null>(null);
-  const [paywall, setPaywall] = useState(false);
-  const [buying,  setBuying]  = useState(false);
+  const [to,       setTo]       = useState('');
+  const [message,  setMessage]  = useState('');
+  const [tplId,    setTplId]    = useState<string>('');
+  const [scheduleOn, setScheduleOn] = useState(false);
+  const [sendAt,   setSendAt]   = useState('');
+  const [trackLinks, setTrackLinks] = useState(true);
+  const [busy,     setBusy]     = useState(false);
+  const [result,   setResult]   = useState<{ ok: boolean; text: string } | null>(null);
+  const [paywall,  setPaywall]  = useState(false);
+  const [buying,   setBuying]   = useState(false);
 
   const { data: templates } = useQuery<Template[] | { data: Template[] }>({
     queryKey: ['templates'],
@@ -36,13 +39,20 @@ export default function SendPage() {
     e.preventDefault();
     setBusy(true); setResult(null); setPaywall(false);
     try {
+      const payload: any = { to, message };
+      if (scheduleOn && sendAt) payload.send_at = new Date(sendAt).toISOString();
+      if (/https?:\/\//i.test(message) && trackLinks) payload.track_links = true;
+
       const res = await api<{ id: string; status: string }>('/send-sms', {
         method: 'POST',
-        body: JSON.stringify({ to, message }),
+        body: JSON.stringify(payload),
         token: getToken(),
       });
-      setResult({ ok: true, text: `Queued (${res.status}) · id ${res.id}` });
-      setTo(''); setMessage('');
+      const label = res.status === 'scheduled'
+        ? `Scheduled for ${new Date(sendAt).toLocaleString()} · id ${res.id}`
+        : `Queued (${res.status}) · id ${res.id}`;
+      setResult({ ok: true, text: label });
+      setTo(''); setMessage(''); setSendAt(''); setScheduleOn(false);
     } catch (e: any) {
       if (e?.status === 402) {
         // Out of credits — open the top-up flow immediately.
@@ -115,10 +125,54 @@ export default function SendPage() {
               {/\{\{\w+\}\}/.test(message) && <> · placeholders will send as-is</>}
             </span>
           </label>
+          {/https?:\/\//i.test(message) && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={trackLinks}
+                onChange={e => setTrackLinks(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              <span>
+                Track link clicks
+                <span className="ml-1 text-xs text-slate-500">
+                  (URLs are shortened to sms.a1techflow.com/l/…)
+                </span>
+              </span>
+            </label>
+          )}
+
+          <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-800">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={scheduleOn}
+                onChange={e => setScheduleOn(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              <span>Schedule for later</span>
+            </label>
+            {scheduleOn && (
+              <div className="mt-2">
+                <input
+                  type="datetime-local"
+                  value={sendAt}
+                  onChange={e => setSendAt(e.target.value)}
+                  min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+                  required
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100"
+                />
+                <p className="mt-1 text-xs text-slate-500">Your workspace timezone.</p>
+              </div>
+            )}
+          </div>
+
           {result && (
             <p className={`text-sm ${result.ok ? 'text-emerald-600' : 'text-red-600'}`}>{result.text}</p>
           )}
-          <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send'}</Button>
+          <Button type="submit" disabled={busy}>
+            {busy ? 'Sending…' : scheduleOn ? 'Schedule' : 'Send'}
+          </Button>
         </form>
       </Card>
 

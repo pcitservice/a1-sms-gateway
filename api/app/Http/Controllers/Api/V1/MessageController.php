@@ -32,6 +32,20 @@ class MessageController extends Controller
         return response()->json($message->events()->get());
     }
 
+    public function linkClicks(string $id)
+    {
+        $message = SmsMessage::findOrFail($id);
+        $links = \App\Models\ShortLink::query()
+            ->where('message_id', $message->id)
+            ->withCount('clicks')
+            ->orderBy('id')
+            ->get(['id', 'code', 'target_url', 'click_count', 'last_clicked_at']);
+        return response()->json([
+            'total_clicks' => $links->sum('click_count'),
+            'links'        => $links,
+        ]);
+    }
+
     public function threads(Request $request)
     {
         // Group inbound msgs by `from` and last message timestamp.

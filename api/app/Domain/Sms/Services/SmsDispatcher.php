@@ -6,6 +6,7 @@ use App\Domain\Billing\Exceptions\InsufficientBalance;
 use App\Domain\Sms\Jobs\SendSmsJob;
 use App\Models\SmsMessage;
 use App\Models\Team;
+// LinkShortener is autoloaded from the same namespace, no import needed.
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Str;
 use Propaganistas\LaravelPhone\PhoneNumber;
@@ -17,14 +18,23 @@ use Propaganistas\LaravelPhone\PhoneNumber;
  */
 class SmsDispatcher
 {
-    public function __construct(protected SmsBilling $billing) {}
+    public function __construct(
+        protected SmsBilling $billing,
+        protected LinkShortener $shortener,
+    ) {}
 
     public function dispatch(Team $team, array $payload, ?int $userId = null): SmsMessage
     {
-        $to    = $this->normalize($payload['to'], $payload['country_hint'] ?? null);
-        $body  = $this->renderBody($payload);
+        $to      = $this->normalize($payload['to'], $payload['country_hint'] ?? null);
+        $body    = $this->renderBody($payload);
+        // Shorten URLs FIRST so segmentation reflects the shorter body.
+        $trackLinks = (bool) ($payload['track_links'] ?? false);
+        $messageId  = (string) Str::ulid();
+        if ($trackLinks) {
+            $body = $this->shortener->shorten($body, $team, $messageId, $payload['campaign_id'] ?? null);
+        }
         $segments = $this->segmentCount($body);
-        $cost  = $this->billing->priceFor($team, $segments);
+        $cost     = $this->billing->priceFor($team, $segments);
 
         if (! $this->billing->canAfford($team, $cost)) {
             throw new InsufficientBalance(sprintf(
@@ -33,8 +43,15 @@ class SmsDispatcher
             ));
         }
 
+        // Future-dated send? Park it as 'scheduled'; the scheduler will
+        // flip it to 'queued' and dispatch when send_at <= now().
+        $sendAt = ! empty($payload['send_at'])
+            ? \Carbon\CarbonImmutable::parse($payload['send_at'])
+            : null;
+        $scheduled = $sendAt && $sendAt->isFuture();
+
         $message = SmsMessage::create([
-            'id'         => (string) Str::ulid(),
+            'id'         => $messageId,
             'team_id'    => $team->id,
             'user_id'    => $userId,
             'batch_id'   => $payload['batch_id'] ?? null,
@@ -44,18 +61,21 @@ class SmsDispatcher
             'to'         => $to,
             'body'       => $body,
             'segments'   => $segments,
-            'status'     => 'queued',
+            'status'     => $scheduled ? 'scheduled' : 'queued',
             'metadata'   => $payload['metadata'] ?? [],
             'cost_ore'   => $cost,
-            'queued_at'  => now(),
+            'queued_at'  => $scheduled ? null : now(),
+            'send_at'    => $sendAt,
             'gateway_id' => $payload['gateway_id'] ?? null,
         ]);
 
         $this->billing->record($team, segments: $segments);
 
-        Bus::dispatch(
-            (new SendSmsJob($message->id))->onQueue('sms.outbound')
-        );
+        if (! $scheduled) {
+            Bus::dispatch(
+                (new SendSmsJob($message->id))->onQueue('sms.outbound')
+            );
+        }
 
         return $message;
     }

@@ -11,8 +11,11 @@ class ContactGroup extends Model
 {
     use BelongsToTeam, HasFactory;
 
-    protected $fillable = ['team_id', 'name', 'color', 'rules'];
-    protected $casts    = ['rules' => 'array'];
+    protected $fillable = [
+        'team_id', 'name', 'color', 'rules',
+        'slug', 'is_public', 'public_title', 'public_description', 'confirmation_message',
+    ];
+    protected $casts = ['rules' => 'array', 'is_public' => 'boolean'];
 
     public function contacts(): BelongsToMany
     {

@@ -22,6 +22,12 @@ class SendSmsRequest extends FormRequest
             'gateway_id'   => ['nullable', 'integer'],
             'callback_url' => ['nullable', 'url'],
             'metadata'     => ['nullable', 'array'],
+            // Future-dated send. ISO 8601 or Y-m-d H:i. Anything <= now goes
+            // straight into the outbound queue.
+            'send_at'      => ['nullable', 'date', 'after:now'],
+            // When true, http(s) URLs in the body are rewritten to
+            // /l/{code} short links so we can count clicks.
+            'track_links'  => ['nullable', 'boolean'],
         ];
     }
 }

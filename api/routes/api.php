@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\GroupController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\MessageController;
+use App\Http\Controllers\Api\V1\PublicOptInController;
 use App\Http\Controllers\Api\V1\ProfileController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SendController;
@@ -41,6 +42,16 @@ Route::prefix('v1')->group(function () {
     Route::get('agent/config/{gateway}', [AgentController::class, 'config'])
         ->name('agent.config');
 
+    // Public opt-in landing pages — no auth, throttled per IP.
+    Route::get ('public/group/{slug}',    [PublicOptInController::class, 'show'])->middleware('throttle:60,1');
+    Route::post('public/opt-in/{slug}',   [PublicOptInController::class, 'optIn'])->middleware('throttle:10,1');
+    Route::post('public/opt-out/{slug}',  [PublicOptInController::class, 'optOut'])->middleware('throttle:10,1');
+
+    // Short link click + resolve — the /l/{code} URL in outbound SMS proxies
+    // here via the Next.js route handler so we get a persistent record in
+    // Postgres, not just an ephemeral edge hit.
+    Route::post('short-links/{code}/click', [\App\Http\Controllers\ShortLinkController::class, 'clickAndResolve']);
+
     Route::middleware(['auth:sanctum', 'team', 'verified.2fa'])->group(function () {
         Route::post('auth/logout',  [AuthController::class, 'logout']);
         Route::get ('auth/me',      [AuthController::class, 'me']);
@@ -69,6 +80,7 @@ Route::prefix('v1')->group(function () {
         Route::get('messages',                [MessageController::class, 'index']);
         Route::get('messages/{id}',           [MessageController::class, 'show']);
         Route::get('messages/{id}/events',    [MessageController::class, 'events']);
+        Route::get('messages/{id}/link-clicks', [MessageController::class, 'linkClicks']);
         Route::get('inbox/threads',           [MessageController::class, 'threads']);
         Route::get('inbox/threads/{contact}', [MessageController::class, 'thread']);
 

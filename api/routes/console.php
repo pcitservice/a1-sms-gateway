@@ -2,6 +2,7 @@
 
 use App\Console\Commands\BootstrapAdmin;
 use App\Console\Commands\CreateAdminUser;
+use App\Console\Commands\FlushScheduledSms;
 use App\Console\Commands\GatewayHealthCheck;
 use App\Console\Commands\PollIncomingSms;
 use App\Console\Commands\RotateApiTokens;
@@ -12,6 +13,7 @@ Artisan::command('inspire', fn () => $this->comment('Send the SMS that matters.'
 
 Schedule::command(GatewayHealthCheck::class)->everyMinute()->withoutOverlapping();
 Schedule::command(PollIncomingSms::class)->everyThirtySeconds()->withoutOverlapping();
+Schedule::command(FlushScheduledSms::class)->everyMinute()->withoutOverlapping();
 Schedule::command('a1:billing:record-usage')->dailyAt('02:30');
 Schedule::command('a1:billing:trials-expiring')->dailyAt('08:00');
 Schedule::command('horizon:snapshot')->everyFiveMinutes();
