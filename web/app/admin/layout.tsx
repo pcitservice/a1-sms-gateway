@@ -31,7 +31,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <aside className="w-60 border-r border-slate-200 bg-slate-900 p-4 text-slate-100 dark:bg-slate-950">
-        <Link href="/admin" className="block text-lg font-semibold">A1 SMS · Admin</Link>
+        <Link href="/admin" className="block text-lg font-semibold">{(process.env.NEXT_PUBLIC_APP_NAME || 'PCIT SMS Gateway')} · Admin</Link>
         <nav className="mt-6 space-y-1 text-sm">
           {NAV.map(item => (
             <Link
