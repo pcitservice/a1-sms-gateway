@@ -42,17 +42,20 @@ class MqttListen extends Command
         $pass   = (string) config('sms.mqtt.admin_password');
         $maxRt  = (int)    $this->option('max-runtime');
 
-        $client   = new MqttClient($host, $port, 'a1sms-listener-'.Str::random(6));
+        // STABLE clientId so the broker keeps our QoS 1 queue across restarts.
+        $clientId = 'a1sms-listener-main';
+        $client   = new MqttClient($host, $port, $clientId);
         $settings = (new ConnectionSettings)
             ->setUsername($user)
             ->setPassword($pass)
-            ->setConnectTimeout(5)
-            ->setKeepAliveInterval(30)
-            ->setLastWillTopic('a1sms/listener/status')
-            ->setLastWillMessage('offline')
-            ->setLastWillQualityOfService(1);
+            ->setConnectTimeout(10)
+            ->setSocketTimeout(30)
+            ->setKeepAliveInterval(60)
+            ->setResendTimeout(10);
 
-        $client->connect($settings, true);
+        // clean_session=false so QoS 1 messages queue on the broker if we
+        // briefly disconnect (needs stable clientId).
+        $client->connect($settings, false);
         $this->info("Connected to {$host}:{$port}");
 
         $client->subscribe('sms/status/#',    fn ($t, $m) => $this->onStatus($t, $m),    1);
