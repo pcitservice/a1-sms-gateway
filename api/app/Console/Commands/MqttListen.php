@@ -143,11 +143,20 @@ class MqttListen extends Command
             return;
         }
 
-        // Idempotency: skip if we've already ingested this device's provider ID.
-        $providerId = (string) ($body['id'] ?? 'mqtt-'.bin2hex(random_bytes(8)));
+        // Idempotency: dedupe on content hash, NOT the modem's slot index.
+        // The TRB's gsmctl id is reused after a delete, so the same "0" comes
+        // back for every new SMS once older ones are wiped. Hashing from + time
+        // + body dedupes true duplicates without dropping fresh messages.
+        $bodyText = (string) ($body['message'] ?? $body['text'] ?? '');
+        $providerId = 'in-'.sha1(
+            $deviceId.'|'.
+            ((string) ($body['from'] ?? '')).'|'.
+            ((string) ($body['received_at'] ?? '')).'|'.
+            $bodyText
+        );
         $existing = SmsMessage::query()->withoutGlobalScopes()
             ->where('gateway_id', $gateway->id)->where('provider_id', $providerId)->first();
-        if ($existing) return;
+        if ($existing) { $this->info("[LISTENER] inbound dedupe hit for $providerId"); return; }
 
         $sms = SmsMessage::create([
             'id'          => (string) Str::ulid(),
@@ -156,7 +165,7 @@ class MqttListen extends Command
             'direction'   => 'inbound',
             'from'        => (string) ($body['from'] ?? ''),
             'to'          => (string) ($body['to']   ?? ''),
-            'body'        => (string) ($body['message'] ?? $body['text'] ?? ''),
+            'body'        => $bodyText,
             'status'      => 'received',
             'provider_id' => $providerId,
             'metadata'    => ['source' => 'mqtt', 'raw' => $body],
