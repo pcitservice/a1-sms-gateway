@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AgentController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\AutomationController;
+use App\Http\Controllers\Api\V1\BillingController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\GroupController;
@@ -88,6 +89,10 @@ Route::prefix('v1')->group(function () {
         // Reports.
         Route::get('reports/usage',    [ReportController::class, 'usage']);
         Route::get('reports/delivery', [ReportController::class, 'delivery']);
+
+        // Billing (pay-as-you-go SMS credits).
+        Route::get ('billing/summary',  [BillingController::class, 'summary']);
+        Route::post('billing/checkout', [BillingController::class, 'checkout'])->middleware('throttle:10,1');
 
         // Webhook subscriptions.
         Route::apiResource('webhooks', WebhookController::class)->only(['index', 'store', 'destroy']);

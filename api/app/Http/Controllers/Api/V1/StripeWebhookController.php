@@ -31,4 +31,41 @@ class StripeWebhookController extends CashierWebhookController
         }
         return parent::handleCustomerSubscriptionDeleted($payload);
     }
+
+    /**
+     * One-off SMS credit top-ups from BillingController::checkout land here.
+     * We trust ONLY Stripe's own metadata + amount — the client never gets
+     * to influence how many credits are granted.
+     */
+    public function handleCheckoutSessionCompleted(array $payload)
+    {
+        $object = $payload['data']['object'] ?? [];
+        if (($object['payment_status'] ?? '') !== 'paid') {
+            return $this->successMethod();
+        }
+
+        $meta = $object['metadata'] ?? [];
+        if (($meta['kind'] ?? null) !== 'sms_credits_topup') {
+            return $this->successMethod();
+        }
+
+        $teamId = (int) ($meta['team_id']     ?? 0);
+        $grant  = (int) ($meta['sms_credits'] ?? 0);
+        if (! $teamId || $grant <= 0) {
+            return $this->successMethod();
+        }
+
+        $team = Team::query()->find($teamId);
+        if ($team) {
+            $team->increment('sms_credits', $grant);
+            \Log::info('sms_credits topped up', [
+                'team_id'    => $teamId,
+                'granted'    => $grant,
+                'session_id' => $object['id'] ?? null,
+                'amount'     => $object['amount_total'] ?? null,
+                'currency'   => $object['currency']     ?? null,
+            ]);
+        }
+        return $this->successMethod();
+    }
 }

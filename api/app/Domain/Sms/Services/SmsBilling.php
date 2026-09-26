@@ -17,11 +17,17 @@ class SmsBilling
         if ($team->isSuspended()) {
             return false;
         }
-        if ($team->inTrial()) {
-            return $team->trialRemaining() >= max(1, intdiv($cost_ore, (int) config('sms.pricing.per_segment_ore')));
+        $needed = max(1, intdiv($cost_ore, (int) config('sms.pricing.per_segment_ore')));
+
+        // Order: prepaid credits > trial quota > active subscription. Credits
+        // and trial can coexist (a paid team could still have unused trial
+        // SMS); either covers the send.
+        if ((int) ($team->sms_credits ?? 0) >= $needed) {
+            return true;
         }
-        // For subscription-based teams, included quota is enforced at usage
-        // reconciliation. The send path itself trusts the active subscription.
+        if ($team->inTrial() && $team->trialRemaining() >= $needed) {
+            return true;
+        }
         $subscription = $team->subscription();
         return $subscription && $subscription->active();
     }
@@ -32,7 +38,11 @@ class SmsBilling
         $row->increment('messages_sent');
         $row->increment('segments_billed', $segments);
 
-        if ($team->inTrial()) {
+        // Spend prepaid credits first (they were bought explicitly and expire
+        // on refund/reversal), then fall back to trial quota.
+        if ((int) ($team->sms_credits ?? 0) > 0) {
+            $team->decrement('sms_credits', 1);
+        } elseif ($team->inTrial()) {
             $team->increment('trial_sms_used', 1);
         }
     }
