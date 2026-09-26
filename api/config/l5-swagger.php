@@ -5,7 +5,7 @@ return [
     'documentations' => [
         'default' => [
             'api' => [
-                'title' => 'A1 SMS Gateway API',
+                'title' => env('APP_NAME', 'PCIT SMS Gateway') . ' API',
             ],
             'routes' => [
                 'api'      => 'api/documentation',

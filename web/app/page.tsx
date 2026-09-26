@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'PCIT SMS Gateway';
+
 const plans = [
   { slug: 'free',     name: 'Free Trial', price: '0',   sms: '50',     blurb: '14 days, all features.' },
   { slug: 'starter',  name: 'Starter',    price: '99',  sms: '500',    blurb: 'For freelancers & side projects.' },
@@ -13,7 +15,7 @@ export default function Landing() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-white to-brand-50 dark:from-slate-950 dark:to-slate-900">
       <header className="mx-auto flex max-w-7xl items-center justify-between p-6">
-        <Link href="/" className="text-lg font-semibold">A1 SMS Gateway</Link>
+        <Link href="/" className="text-lg font-semibold">{APP_NAME}</Link>
         <nav className="flex items-center gap-3">
           <Link href="/login"><Button variant="ghost">Sign in</Button></Link>
           <Link href="/signup"><Button>Start 14-day trial</Button></Link>
@@ -25,7 +27,7 @@ export default function Landing() {
           Send and receive SMS through your own gateway.
         </h1>
         <p className="mt-6 text-lg text-slate-600 dark:text-slate-300">
-          A1 SMS Gateway gives you a Stripe-billed, multi-tenant SaaS platform sitting in
+          {APP_NAME} gives you a Stripe-billed, multi-tenant SaaS platform sitting in
           front of a Teltonika TRB140 — or any LTE modem. Real two-way SMS, real
           delivery tracking, real automation, real webhooks. Run it on your VPS in one
           command.

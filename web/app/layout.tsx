@@ -3,7 +3,10 @@ import type { Metadata } from 'next';
 import { Providers } from './providers';
 
 export const metadata: Metadata = {
-  title: { default: 'A1 SMS Gateway', template: '%s · A1 SMS Gateway' },
+  title: {
+    default: process.env.NEXT_PUBLIC_APP_NAME || 'PCIT SMS Gateway',
+    template: `%s · ${process.env.NEXT_PUBLIC_APP_NAME || 'PCIT SMS Gateway'}`,
+  },
   description: 'Send and receive SMS at scale through Teltonika TRB140 gateways.',
 };
 

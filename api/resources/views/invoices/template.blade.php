@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h1>A1 SMS Gateway</h1>
+    <h1>{{ config('app.name') }}</h1>
     <div class="muted">{{ config('app.url') }}</div>
 
     <div style="margin-top:24px; display:flex; justify-content:space-between;">

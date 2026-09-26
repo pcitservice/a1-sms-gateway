@@ -36,7 +36,7 @@ export default function LoginPage() {
     <main className="grid min-h-screen place-items-center bg-slate-50 dark:bg-slate-950">
       <Card className="w-full max-w-md">
         <h1 className="text-2xl font-semibold">Sign in</h1>
-        <p className="mt-1 text-sm text-slate-500">to your A1 SMS Gateway workspace</p>
+        <p className="mt-1 text-sm text-slate-500">to your {process.env.NEXT_PUBLIC_APP_NAME || 'PCIT SMS Gateway'} workspace</p>
         <form onSubmit={onSubmit} className="mt-6 space-y-4">
           <label className="block">
             <span className="text-sm">Email</span>
