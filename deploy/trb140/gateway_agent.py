@@ -13,6 +13,8 @@ Log:              /var/log/a1sms-agent.log
 Requires: python3, python3-paho-mqtt on RutOS.
 Install once: opkg update && opkg install python3 python3-paho-mqtt
 """
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -23,6 +25,7 @@ import sys
 import time
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
+from typing import Optional
 
 import paho.mqtt.client as mqtt
 
