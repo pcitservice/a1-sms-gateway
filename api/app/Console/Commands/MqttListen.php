@@ -58,9 +58,19 @@ class MqttListen extends Command
         $client->connect($settings, false);
         $this->info("Connected to {$host}:{$port}");
 
-        $client->subscribe('sms/status/#',    fn ($t, $m) => $this->onStatus($t, $m),    1);
-        $client->subscribe('sms/inbound/#',   fn ($t, $m) => $this->onInbound($t, $m),   1);
-        $client->subscribe('sms/heartbeat/#', fn ($t, $m) => $this->onHeartbeat($t, $m), 1);
+        $client->subscribe('sms/status/#', function ($t, $m) {
+            $this->info("[LISTENER] status recv on $t: ".substr($m, 0, 80));
+            $this->onStatus($t, $m);
+        }, 1);
+        $client->subscribe('sms/inbound/#', function ($t, $m) {
+            $this->info("[LISTENER] inbound recv on $t: ".substr($m, 0, 80));
+            $this->onInbound($t, $m);
+        }, 1);
+        $client->subscribe('sms/heartbeat/#', function ($t, $m) {
+            $this->info("[LISTENER] heartbeat recv on $t: ".substr($m, 0, 80));
+            $this->onHeartbeat($t, $m);
+        }, 1);
+        $this->info("[LISTENER] subscribed to sms/status/#, sms/inbound/#, sms/heartbeat/#");
 
         $started = time();
         $client->registerLoopEventHandler(function (MqttClient $c, float $elapsed) use ($started, $maxRt) {
