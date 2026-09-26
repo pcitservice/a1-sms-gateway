@@ -122,6 +122,11 @@ class Agent:
 
         self._last_hb = 0.0
         self._stopping = False
+        # Coexistence knob: when False, this agent does NOT poll the modem
+        # inbox. Use this when another process (e.g. an existing a1repairflow
+        # /root/sms-bridge/poll.sh cron) already forwards inbound SMS and
+        # deletes them — otherwise the two would race.
+        self.poll_inbound_enabled = bool(cfg.get("poll_inbound", True))
 
     # ------------------------------------------------------ MQTT hooks --
 
@@ -235,7 +240,8 @@ class Agent:
             try:
                 if time.time() - self._last_hb >= self.hb_seconds:
                     self._publish_heartbeat()
-                self._poll_inbound()
+                if self.poll_inbound_enabled:
+                    self._poll_inbound()
             except Exception as exc:  # noqa: BLE001
                 log.exception("loop iteration failed: %s", exc)
             time.sleep(5)
