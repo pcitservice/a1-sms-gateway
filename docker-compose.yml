@@ -69,7 +69,10 @@ services:
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     ports:
-      - "127.0.0.1:${MQTT_HOST_PORT:-1883}:1883"
+      # Temporary: 1883 bound to all interfaces so external TRB agents can
+      # reach it. Auth is required (password_file). Upgrade to 8883/TLS once
+      # sms.pcitservice.dk cert is mounted.
+      - "${MQTT_HOST_PORT:-1883}:1883"
       # Public 8883 is added once TLS certs are mounted — see mosquitto.conf.
       # - "${MQTTS_HOST_PORT:-8883}:8883"
     healthcheck:
