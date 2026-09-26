@@ -61,6 +61,9 @@ services:
     # publicly for internet-facing devices behind CGNAT.
     entrypoint: ["/mosquitto/config/docker-entrypoint.sh"]
     command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
+    environment:
+      MQTT_ADMIN_USER:     ${MQTT_ADMIN_USER:-a1sms-broker}
+      MQTT_ADMIN_PASSWORD: ${MQTT_ADMIN_PASSWORD:-change-me}
     volumes:
       - ./docker/mosquitto:/mosquitto/config
       - mosquitto_data:/mosquitto/data
