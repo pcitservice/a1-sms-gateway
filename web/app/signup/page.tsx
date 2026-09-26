@@ -50,7 +50,14 @@ function SignupForm() {
       setToken(res.token);
       router.push('/dashboard');
     } catch (e: any) {
-      setError(e.title ?? 'Signup failed');
+      const firstFieldError = e?.errors ? Object.values(e.errors).flat()[0] : null;
+      setError(
+        (firstFieldError as string) ??
+        e?.message ??
+        e?.detail ??
+        e?.title ??
+        'Signup failed',
+      );
     } finally {
       setLoading(false);
     }
