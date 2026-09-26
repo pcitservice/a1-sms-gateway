@@ -24,11 +24,23 @@ export default function BillingPage() {
 function BillingInner() {
   const params = useSearchParams();
   const flash  = params.get('checkout');
+  const sessionId = params.get('session_id');
 
   const { data, isLoading, refetch } = useQuery<Summary>({
     queryKey: ['billing-summary'],
     queryFn: () => api('/billing/summary', { token: getToken() }),
   });
+
+  // On return from Stripe with a session_id, verify + grant credits.
+  // This is idempotent; if the webhook already fired it just no-ops.
+  if (typeof window !== 'undefined' && flash === 'success' && sessionId && !(window as any).__verifiedSession) {
+    (window as any).__verifiedSession = sessionId;
+    api('/billing/verify-checkout', {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId }),
+      token: getToken(),
+    }).then(() => refetch()).catch(() => {});
+  }
 
   const checkout = useMutation({
     mutationFn: () => api<{ url: string }>('/billing/checkout', { method: 'POST', token: getToken() }),

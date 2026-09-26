@@ -27,7 +27,7 @@ class AuthController extends Controller
             'team_name' => 'nullable|string|max:120',
             'country'  => ['required', 'string', 'size:2', Rule::in(['DK'])],
         ], [
-            'country.in' => 'The PCIT SMS Gateway is currently available for Danish businesses only.',
+            'country.in' => 'The A1TechFlow SMS is currently available for Danish businesses only.',
         ]);
 
         $user = DB::transaction(function () use ($data) {

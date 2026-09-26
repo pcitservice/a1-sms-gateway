@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
       <aside className="w-60 border-r border-slate-200 bg-white p-4 dark:bg-slate-900 dark:border-slate-800">
-        <Link href="/dashboard" className="block text-lg font-semibold">{process.env.NEXT_PUBLIC_APP_NAME || 'PCIT SMS Gateway'}</Link>
+        <Link href="/dashboard" className="block text-lg font-semibold">{process.env.NEXT_PUBLIC_APP_NAME || 'A1TechFlow SMS'}</Link>
         <nav className="mt-6 space-y-1 text-sm">
           {NAV.map(item => (
             <Link

@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
-  title: PCIT SMS Gateway API
+  title: A1TechFlow SMS API
   version: "1.0.0"
   summary: Two-way SMS over your own hardware, delivered by REST.
   description: |
-    The PCIT SMS Gateway API sends and receives SMS through a fleet of
+    The A1TechFlow SMS API sends and receives SMS through a fleet of
     physical SIM gateways (Teltonika TRB140 devices). It gives you:
 
       * A single REST endpoint to **send** one SMS or up to 1000 at once.
@@ -64,7 +64,7 @@ info:
     Validation errors (`422`) also include a Laravel-style `errors` map keyed
     by field name.
   contact:
-    name: PCIT SMS Gateway support
+    name: A1TechFlow SMS support
     email: info@pcit.dk
   license:
     name: Proprietary

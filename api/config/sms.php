@@ -3,7 +3,7 @@
 return [
     'trial' => [
         'days'      => (int) env('TRIAL_DAYS', 14),
-        'sms_limit' => (int) env('TRIAL_SMS_LIMIT', 50),
+        'sms_limit' => (int) env('TRIAL_SMS_LIMIT', 25),
     ],
 
     'default_gateway_kind' => env('DEFAULT_GATEWAY_KIND', 'mock'),

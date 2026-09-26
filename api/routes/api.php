@@ -91,8 +91,9 @@ Route::prefix('v1')->group(function () {
         Route::get('reports/delivery', [ReportController::class, 'delivery']);
 
         // Billing (pay-as-you-go SMS credits).
-        Route::get ('billing/summary',  [BillingController::class, 'summary']);
-        Route::post('billing/checkout', [BillingController::class, 'checkout'])->middleware('throttle:10,1');
+        Route::get ('billing/summary',         [BillingController::class, 'summary']);
+        Route::post('billing/checkout',        [BillingController::class, 'checkout'])->middleware('throttle:10,1');
+        Route::post('billing/verify-checkout', [BillingController::class, 'verifyCheckout'])->middleware('throttle:30,1');
 
         // Webhook subscriptions.
         Route::apiResource('webhooks', WebhookController::class)->only(['index', 'store', 'destroy']);

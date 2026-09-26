@@ -11,10 +11,12 @@ export default function SendPage() {
   const [message, setMessage] = useState('');
   const [busy,    setBusy]    = useState(false);
   const [result,  setResult]  = useState<{ ok: boolean; text: string } | null>(null);
+  const [paywall, setPaywall] = useState(false);
+  const [buying,  setBuying]  = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true); setResult(null);
+    setBusy(true); setResult(null); setPaywall(false);
     try {
       const res = await api<{ id: string; status: string }>('/send-sms', {
         method: 'POST',
@@ -24,9 +26,25 @@ export default function SendPage() {
       setResult({ ok: true, text: `Queued (${res.status}) · id ${res.id}` });
       setTo(''); setMessage('');
     } catch (e: any) {
-      setResult({ ok: false, text: e.detail ?? e.title ?? 'Send failed' });
+      if (e?.status === 402) {
+        // Out of credits — open the top-up flow immediately.
+        setPaywall(true);
+      } else {
+        setResult({ ok: false, text: e.detail ?? e.title ?? e.message ?? 'Send failed' });
+      }
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function buyCredits() {
+    setBuying(true);
+    try {
+      const r = await api<{ url: string }>('/billing/checkout', { method: 'POST', token: getToken() });
+      window.location.href = r.url;
+    } catch (e: any) {
+      setResult({ ok: false, text: e?.detail ?? e?.message ?? 'Could not open checkout.' });
+      setBuying(false);
     }
   }
 
@@ -61,6 +79,42 @@ export default function SendPage() {
           <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send'}</Button>
         </form>
       </Card>
+
+      {paywall && (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-slate-900/50 p-4"
+          onClick={() => !buying && setPaywall(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-slate-900"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="text-4xl">💳</div>
+            <h2 className="mt-2 text-xl font-semibold">You're out of SMS credits</h2>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+              Your free trial credit is used up. Top up to keep sending — no subscription, no auto-renew.
+            </p>
+
+            <div className="mt-5 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+              <div className="flex items-baseline justify-between">
+                <div className="text-lg font-semibold">300 SMS credits</div>
+                <div className="text-2xl font-bold">99 DKK</div>
+              </div>
+              <div className="mt-1 text-xs text-slate-500">0.33 DKK per SMS · one-off payment · never expires</div>
+            </div>
+
+            <div className="mt-5 flex gap-2">
+              <Button onClick={buyCredits} disabled={buying} className="flex-1">
+                {buying ? 'Redirecting…' : 'Pay with card'}
+              </Button>
+              <Button variant="ghost" onClick={() => setPaywall(false)} disabled={buying}>
+                Not now
+              </Button>
+            </div>
+            <p className="mt-3 text-center text-xs text-slate-500">Secure payment via Stripe.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

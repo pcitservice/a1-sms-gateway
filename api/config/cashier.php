@@ -15,7 +15,7 @@ return [
     'logger'  => env('CASHIER_LOGGER'),
     'invoices' => [
         'metadata' => [
-            'platform' => env('APP_NAME', 'PCIT SMS Gateway'),
+            'platform' => env('APP_NAME', 'A1TechFlow SMS'),
         ],
     ],
 ];

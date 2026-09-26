@@ -64,7 +64,7 @@ function LoginForm() {
     <main className="grid min-h-screen place-items-center bg-slate-50 dark:bg-slate-950">
       <Card className="w-full max-w-md">
         <h1 className="text-2xl font-semibold">Sign in</h1>
-        <p className="mt-1 text-sm text-slate-500">to your {process.env.NEXT_PUBLIC_APP_NAME || 'PCIT SMS Gateway'} workspace</p>
+        <p className="mt-1 text-sm text-slate-500">to your {process.env.NEXT_PUBLIC_APP_NAME || 'A1TechFlow SMS'} workspace</p>
 
         {justVerified && (
           <div className="mt-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-200">

@@ -2,13 +2,11 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
-const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'PCIT SMS Gateway';
+const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME || 'A1TechFlow SMS';
 
 const plans = [
-  { slug: 'free',     name: 'Free Trial', price: '0',   sms: '50',     blurb: '14 days, all features.' },
-  { slug: 'starter',  name: 'Starter',    price: '99',  sms: '500',    blurb: 'For freelancers & side projects.' },
-  { slug: 'business', name: 'Business',   price: '299', sms: '3 000',  blurb: 'For small businesses.', highlight: true },
-  { slug: 'pro',      name: 'Pro',        price: '999', sms: '15 000', blurb: 'For high-volume senders.' },
+  { slug: 'free',   name: 'Free Trial',    price: '0',  sms: '25',  blurb: 'Try it, no card needed.' },
+  { slug: 'topup',  name: 'Pay-as-you-go', price: '99', sms: '300', blurb: 'Refills anytime, no subscription.', highlight: true },
 ];
 
 export default function Landing() {
