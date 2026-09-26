@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { api, setToken } from '@/lib/api';
+import { api } from '@/lib/api';
 
 export default function SignupPage() {
   // useSearchParams must be inside Suspense in Next 15, or the prerender fails.
@@ -37,7 +37,7 @@ function SignupForm() {
     }
     setLoading(true); setError(null);
     try {
-      const res = await api<{ token: string }>('/auth/signup', {
+      await api<{ verification_required: boolean }>('/auth/signup', {
         method: 'POST',
         body: JSON.stringify({
           name,
@@ -47,8 +47,7 @@ function SignupForm() {
           country:   'DK',
         }),
       });
-      setToken(res.token);
-      router.push('/dashboard');
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (e: any) {
       const firstFieldError = e?.errors ? Object.values(e.errors).flat()[0] : null;
       setError(

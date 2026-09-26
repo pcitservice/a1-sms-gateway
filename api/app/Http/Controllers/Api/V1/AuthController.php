@@ -58,11 +58,28 @@ class AuthController extends Controller
 
         event(new Registered($user));
 
+        // No token is issued — the user cannot use the API until they click the
+        // verification link we just emailed. This is the only defence against
+        // fake / disposable-email signups.
         return response()->json([
-            'user'  => $user->only('id', 'name', 'email'),
-            'team'  => $user->currentTeam,
-            'token' => $user->createToken('signup', ['*'])->plainTextToken,
+            'user'                  => $user->only('id', 'name', 'email'),
+            'verification_required' => true,
+            'message'               => 'Check your inbox for a verification link.',
         ], 201);
+    }
+
+    public function resendVerification(Request $request)
+    {
+        $data = $request->validate(['email' => 'required|email']);
+        $user = User::where('email', $data['email'])->first();
+
+        // Don't leak whether the address exists — always return 202.
+        if ($user && ! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
+        return response()->json([
+            'message' => 'If an unverified account exists for that email, a new link is on its way.',
+        ], 202);
     }
 
     public function login(Request $request)
@@ -79,6 +96,15 @@ class AuthController extends Controller
         }
         if ($user->isSuspended()) {
             return response()->json(['title' => 'Account suspended', 'status' => 403], 403);
+        }
+        if (! $user->hasVerifiedEmail()) {
+            return response()->json([
+                'title'                => 'Email not verified',
+                'status'               => 403,
+                'detail'               => 'Please click the link we sent to your email before signing in.',
+                'verification_required' => true,
+                'email'                => $user->email,
+            ], 403);
         }
 
         $user->forceFill([
@@ -140,7 +166,9 @@ class AuthController extends Controller
         if (! $user->hasVerifiedEmail()) {
             $user->markEmailAsVerified();
         }
-        return response()->json(['status' => 'verified']);
+        // Redirect to the frontend login with a success flag instead of returning
+        // raw JSON — the user got here by clicking a link in their email client.
+        return redirect(config('app.url').'/login?verified=1');
     }
 
     public function listTokens(Request $request)

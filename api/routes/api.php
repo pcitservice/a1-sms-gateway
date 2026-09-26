@@ -27,7 +27,10 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/login',           [AuthController::class, 'login'])->middleware('throttle:10,1');
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:5,1');
     Route::post('auth/reset-password',  [AuthController::class, 'resetPassword'])->middleware('throttle:5,1');
-    Route::get('auth/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])->name('verification.verify');
+    Route::post('auth/resend-verification', [AuthController::class, 'resendVerification'])->middleware('throttle:5,1');
+    Route::get('auth/verify-email/{id}/{hash}', [AuthController::class, 'verifyEmail'])
+        ->middleware(['signed', 'throttle:6,1'])
+        ->name('verification.verify');
 
     // Inbound webhooks from external systems.
     Route::post('webhooks/stripe',  [StripeWebhookController::class,  'handle']);
