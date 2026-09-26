@@ -64,6 +64,11 @@ class BillingController extends Controller
                 'mode'                => 'payment',
                 'success_url'         => config('app.url').'/dashboard/billing?checkout=success',
                 'cancel_url'          => config('app.url').'/dashboard/billing?checkout=cancelled',
+                // Automatic tax is on for the Stripe account, so Checkout has
+                // to be told to collect + persist a billing address on the
+                // Stripe customer for tax calculation to work.
+                'billing_address_collection' => 'required',
+                'customer_update'           => ['address' => 'auto', 'name' => 'auto'],
                 'payment_intent_data' => [
                     'metadata' => [
                         'team_id'     => (string) $team->id,
