@@ -1,18 +1,36 @@
 'use client';
 
+import Link from 'next/link';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { api, getToken } from '@/lib/api';
 
+type Template = { id: number; name: string; body: string };
+
 export default function SendPage() {
   const [to,      setTo]      = useState('');
   const [message, setMessage] = useState('');
+  const [tplId,   setTplId]   = useState<string>('');
   const [busy,    setBusy]    = useState(false);
   const [result,  setResult]  = useState<{ ok: boolean; text: string } | null>(null);
   const [paywall, setPaywall] = useState(false);
   const [buying,  setBuying]  = useState(false);
+
+  const { data: templates } = useQuery<Template[] | { data: Template[] }>({
+    queryKey: ['templates'],
+    queryFn: () => api('/templates', { token: getToken() }),
+  });
+  const tplList: Template[] = Array.isArray(templates) ? templates : (templates?.data ?? []);
+
+  function applyTemplate(id: string) {
+    setTplId(id);
+    if (!id) return;
+    const t = tplList.find(x => String(x.id) === id);
+    if (t) setMessage(t.body);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,6 +80,27 @@ export default function SendPage() {
             <Input value={to} onChange={e => setTo(e.target.value)} placeholder="+4512345678" required />
           </label>
           <label className="block">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Template (optional)</span>
+              <Link href="/dashboard/templates" className="text-xs text-brand-600 hover:underline">Manage templates →</Link>
+            </div>
+            <select
+              value={tplId}
+              onChange={e => applyTemplate(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100"
+            >
+              <option value="">— Start from scratch —</option>
+              {tplList.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+            {tplList.length === 0 && (
+              <p className="mt-1 text-xs text-slate-500">
+                No templates yet. <Link href="/dashboard/templates" className="text-brand-600 hover:underline">Create one</Link> to reuse common messages.
+              </p>
+            )}
+          </label>
+          <label className="block">
             <span className="text-sm">Message</span>
             <textarea
               value={message}
@@ -71,7 +110,10 @@ export default function SendPage() {
               maxLength={1530}
               className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-100"
             />
-            <span className="mt-1 block text-xs text-slate-500">{message.length} chars · {segments} segment{segments === 1 ? '' : 's'}</span>
+            <span className="mt-1 block text-xs text-slate-500">
+              {message.length} chars · {segments} segment{segments === 1 ? '' : 's'}
+              {/\{\{\w+\}\}/.test(message) && <> · placeholders will send as-is</>}
+            </span>
           </label>
           {result && (
             <p className={`text-sm ${result.ok ? 'text-emerald-600' : 'text-red-600'}`}>{result.text}</p>
