@@ -107,6 +107,17 @@ def _try_int(s: str) -> int | None:
         return None
 
 
+def _try_parse_date(raw):
+    """RutOS gsmctl -S -l uses 'Sat Sep 26 19:19:47 2026'. Fall back to now."""
+    if not raw: return None
+    for fmt in ("%a %b %d %H:%M:%S %Y", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(raw.strip(), fmt).replace(tzinfo=timezone.utc).isoformat()
+        except Exception:
+            continue
+    return None
+
+
 class Agent:
     def __init__(self, cfg: dict) -> None:
         self.cfg      = cfg
@@ -196,22 +207,27 @@ class Agent:
 
     def _poll_inbound(self) -> None:
         """
-        Read new SMS from the SIM and publish. Uses `gsmctl -L` (list all
-        SMS), then `gsmctl -D <id>` (delete) after publishing so we don't
+        Read new SMS from the SIM and publish. Uses `gsmctl -S -l all`,
+        then `gsmctl -S -d <id>` (delete) after publishing so we don't
         re-emit.
         """
-        stdout, rc = gsmctl("-L")
+        stdout, rc = gsmctl("-S", "-l", "all")
         if rc != 0 or not stdout: return
-        for entry in _parse_sms_list(stdout):
+        entries = list(_parse_sms_list(stdout))
+        if entries:
+            log.info("inbound: %d SMS in modem, forwarding", len(entries))
+        for entry in entries:
             self.client.publish(self.topics["inbound"], json.dumps({
                 "id":          entry.get("index"),
                 "from":        entry.get("sender"),
                 "message":     entry.get("text", ""),
-                "received_at": entry.get("date")
+                "received_at": _try_parse_date(entry.get("date"))
                                 or datetime.now(timezone.utc).isoformat(),
             }), qos=1)
             if entry.get("index"):
-                gsmctl("-D", str(entry["index"]))
+                gsmctl("-S", "-d", str(entry["index"]))
+                log.info("inbound: ingested + deleted SMS index=%s from=%s",
+                         entry.get("index"), entry.get("sender"))
 
     # ------------------------------------------------------ heartbeat --
 
