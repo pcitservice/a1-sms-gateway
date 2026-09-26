@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useState } from 'react';
 import { api, getToken } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -35,7 +36,24 @@ export default function ApiKeysPage() {
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl font-semibold">API keys</h1>
-      <p className="mt-1 text-sm text-slate-500">Use these to call the REST API. Treat like passwords.</p>
+      <p className="mt-1 text-sm text-slate-500">
+        Use these to call the REST API. Treat like passwords.{' '}
+        <Link href="/docs" target="_blank" className="text-brand-600 underline hover:text-brand-700">
+          Read the API reference →
+        </Link>
+      </p>
+
+      <Card className="mt-4 bg-slate-50 dark:bg-slate-900/40">
+        <div className="text-sm">
+          <div className="font-medium">Quickstart</div>
+          <pre className="mt-2 overflow-x-auto rounded bg-slate-900 p-3 font-mono text-xs text-slate-100">
+{`curl -X POST https://sms.a1techflow.com/api/v1/send-sms \\
+  -H "Authorization: Bearer <YOUR_KEY>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"to":"+4531139345","message":"Hello from the API"}'`}
+          </pre>
+        </div>
+      </Card>
 
       <Card className="mt-6">
         <form onSubmit={e => { e.preventDefault(); createKey.mutate(); }} className="flex gap-3">

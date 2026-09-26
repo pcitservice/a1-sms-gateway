@@ -1,0 +1,860 @@
+openapi: 3.1.0
+info:
+  title: PCIT SMS Gateway API
+  version: "1.0.0"
+  summary: Two-way SMS over your own hardware, delivered by REST.
+  description: |
+    The PCIT SMS Gateway API sends and receives SMS through a fleet of
+    physical SIM gateways (Teltonika TRB140 devices). It gives you:
+
+      * A single REST endpoint to **send** one SMS or up to 1000 at once.
+      * **Inbound** messages pushed to your server as signed webhooks — you
+        never poll.
+      * Message-status callbacks (`queued`, `sent`, `delivered`, `failed`).
+      * Contacts, templates, campaigns and automations if you want the
+        dashboard side too, but the two endpoints below are enough to build
+        a full two-way integration.
+
+    ### Base URL
+
+    ```
+    https://sms.a1techflow.com/api/v1
+    ```
+
+    All responses are JSON. All requests that carry a body use
+    `Content-Type: application/json`.
+
+    ### Authentication
+
+    Every request outside `/auth/*` and `/health` needs a bearer token:
+
+    ```
+    Authorization: Bearer sms_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    ```
+
+    Create one in the dashboard at **API keys**, or with
+    `POST /api-keys`. A token belongs to a workspace (team) and inherits
+    that workspace's plan, balance and rate limits.
+
+    Tokens can be scoped with abilities:
+
+      * `sms:send`   — call `/send-sms`, `/send-bulk`
+      * `sms:read`   — read messages and threads
+      * `contacts:read`, `contacts:write`
+      * `webhooks:write`
+      * `*`          — everything the user can do (default for dashboard tokens)
+
+    ### Rate limits
+
+    Send endpoints are throttled per token. When you exceed the limit the
+    API returns `429 Too Many Requests` with a `Retry-After` header.
+
+    ### Errors
+
+    Errors use a Problem-JSON style envelope:
+
+    ```json
+    {
+      "title": "Insufficient balance",
+      "status": 402,
+      "detail": "Trial credit exhausted. Top up at /dashboard/billing."
+    }
+    ```
+
+    Validation errors (`422`) also include a Laravel-style `errors` map keyed
+    by field name.
+  contact:
+    name: PCIT SMS Gateway support
+    email: info@pcit.dk
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://sms.a1techflow.com/api/v1
+    description: Production
+
+tags:
+  - name: SMS
+    description: Send single or bulk messages.
+  - name: Messages
+    description: Retrieve messages, their status and delivery events.
+  - name: Inbox
+    description: Threaded view of inbound messages (2-way conversations).
+  - name: Webhooks
+    description: Push endpoints for delivery reports and inbound SMS.
+  - name: API keys
+    description: Issue and revoke bearer tokens.
+  - name: Contacts
+    description: Address book stored per workspace.
+  - name: Templates
+    description: Reusable message bodies with `{{variable}}` placeholders.
+  - name: Campaigns
+    description: Schedule and send batches to contact groups.
+  - name: Reports
+    description: Aggregated usage and delivery numbers.
+  - name: Auth
+    description: Signup, login and password reset (used by the dashboard).
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  /health:
+    get:
+      tags: [Auth]
+      summary: Public health check
+      security: []
+      responses:
+        "200":
+          description: Service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  time:   { type: string, format: date-time }
+
+  /auth/signup:
+    post:
+      tags: [Auth]
+      summary: Create a workspace and its first user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:      { type: string, maxLength: 120 }
+                email:     { type: string, format: email }
+                password:  { type: string, minLength: 10, description: "At least 10 chars with letters and numbers." }
+                team_name: { type: string, maxLength: 120 }
+                country:   { type: string, minLength: 2, maxLength: 2, example: DK }
+      responses:
+        "201":
+          description: Account created; a signup token is returned.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:  { $ref: "#/components/schemas/User" }
+                  team:  { $ref: "#/components/schemas/Team" }
+                  token: { type: string, example: "1|sms_abc123…" }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Exchange email + password for a bearer token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:       { type: string, format: email }
+                password:    { type: string }
+                device_name: { type: string, maxLength: 80, example: "billing-cron" }
+      responses:
+        "200":
+          description: Login OK.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:  { $ref: "#/components/schemas/User" }
+                  token: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current bearer token
+      responses:
+        "204": { description: Logged out. }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: The authenticated user (and their current workspace)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+
+  /api-keys:
+    get:
+      tags: [API keys]
+      summary: List active bearer tokens for this user
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ApiKey" }
+    post:
+      tags: [API keys]
+      summary: Issue a new bearer token
+      description: |
+        The plaintext `token` is returned **once** — store it. After this call
+        the API only ever returns the token's metadata.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:      { type: string, maxLength: 80, example: "server-side send" }
+                abilities:
+                  type: array
+                  items: { type: string }
+                  example: ["sms:send", "sms:read"]
+                expires_in_days: { type: integer, minimum: 1, maximum: 730 }
+      responses:
+        "201":
+          description: Token issued.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:         { type: integer }
+                  name:       { type: string }
+                  token:      { type: string, example: "42|sms_live_…" }
+                  expires_at: { type: string, format: date-time, nullable: true }
+
+  /api-keys/{id}:
+    delete:
+      tags: [API keys]
+      summary: Revoke a bearer token
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204": { description: Revoked. }
+
+  /send-sms:
+    post:
+      tags: [SMS]
+      summary: Send one SMS
+      description: |
+        Enqueues one message for delivery. Returns `202 Accepted` immediately
+        with the message id. Final status arrives via your configured webhook
+        (`message.delivered` / `message.failed`), or via
+        `GET /messages/{id}`.
+
+        Long bodies (over 160 GSM-7 / 70 UCS-2 characters) are split into
+        concatenated parts by the gateway. You are billed one credit per
+        160-character segment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SendSmsRequest" }
+      responses:
+        "202":
+          description: Accepted for delivery.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:             { type: string, example: "01M3FQXY8E8E89APPYMRA3886K" }
+                  status:         { type: string, enum: [queued, sent], example: queued }
+                  estimated_cost: { type: string, example: "0.35" }
+                  currency:       { type: string, example: DKK }
+        "402":
+          description: Insufficient balance (trial exhausted or unpaid invoice).
+        "422": { $ref: "#/components/responses/ValidationError" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /send-bulk:
+    post:
+      tags: [SMS]
+      summary: Send up to 1000 messages in one call
+      description: |
+        Each item is validated and enqueued independently. Partial failures
+        return in the `messages` array with the offending item's `status`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messages]
+              properties:
+                messages:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  items: { $ref: "#/components/schemas/SendSmsRequest" }
+                batch_label:
+                  type: string
+                  maxLength: 80
+                  example: "friday-campaign"
+      responses:
+        "202":
+          description: Batch accepted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batch_id: { type: string }
+                  count:    { type: integer }
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:     { type: string }
+                        to:     { type: string }
+                        status: { type: string, example: queued }
+
+  /messages:
+    get:
+      tags: [Messages]
+      summary: List messages (paginated)
+      parameters:
+        - in: query
+          name: direction
+          schema: { type: string, enum: [inbound, outbound] }
+        - in: query
+          name: status
+          schema: { type: string, enum: [queued, sent, delivered, failed, received] }
+        - in: query
+          name: q
+          description: Substring search on the recipient MSISDN.
+          schema: { type: string }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        "200":
+          description: A page of messages.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedMessages" }
+
+  /messages/{id}:
+    get:
+      tags: [Messages]
+      summary: Get one message
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: The message.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SmsMessage" }
+        "404": { description: Not found. }
+
+  /messages/{id}/events:
+    get:
+      tags: [Messages]
+      summary: Delivery event log for a message
+      description: |
+        Ordered list of provider callbacks for this message: when it entered
+        the gateway, when the device reported it as sent, when the carrier
+        acknowledged delivery, or why it failed.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Event list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/MessageEvent" }
+
+  /inbox/threads:
+    get:
+      tags: [Inbox]
+      summary: List conversations (unique sender numbers)
+      parameters:
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        "200":
+          description: Threads ordered by most recent inbound.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedThreads" }
+
+  /inbox/threads/{msisdn}:
+    get:
+      tags: [Inbox]
+      summary: All messages exchanged with one MSISDN
+      description: |
+        Returns both inbound and outbound messages ordered by `created_at`.
+        `msisdn` must be URL-encoded (`+4531139345` → `%2B4531139345`).
+      parameters:
+        - in: path
+          name: msisdn
+          required: true
+          schema: { type: string }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Conversation history.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PaginatedMessages" }
+
+  /webhooks:
+    get:
+      tags: [Webhooks]
+      summary: List webhook subscriptions
+      responses:
+        "200":
+          description: Subscriptions.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Webhook" }
+    post:
+      tags: [Webhooks]
+      summary: Subscribe a URL to events
+      description: |
+        The response returns the signing `secret` **once**. Verify every
+        incoming webhook by recomputing:
+
+        ```
+        signature = hex(hmac_sha256(secret, "<timestamp>." + raw_body))
+        ```
+
+        and comparing with the `v1=` value in the `X-A1Sms-Signature`
+        header. Reject anything older than 5 minutes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url, events]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  example: "https://example.com/hooks/sms"
+                events:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    enum:
+                      - "*"
+                      - message.queued
+                      - message.sent
+                      - message.delivered
+                      - message.failed
+                      - message.received
+                      - gateway.online
+                      - gateway.offline
+                      - balance.low
+      responses:
+        "201":
+          description: Subscription created; `secret` returned once.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/Webhook"
+                  - type: object
+                    properties:
+                      secret: { type: string, example: "whsec_…" }
+
+  /webhooks/{id}:
+    delete:
+      tags: [Webhooks]
+      summary: Remove a subscription
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "204": { description: Removed. }
+
+  /contacts:
+    get:
+      tags: [Contacts]
+      summary: List contacts
+      parameters:
+        - in: query
+          name: per_page
+          schema: { type: integer, default: 25 }
+      responses:
+        "200": { description: OK }
+    post:
+      tags: [Contacts]
+      summary: Create a contact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [msisdn]
+              properties:
+                msisdn: { type: string, example: "+4531139345" }
+                name:   { type: string }
+                email:  { type: string, format: email }
+                tags:   { type: array, items: { type: string } }
+                custom: { type: object, additionalProperties: true }
+      responses:
+        "201": { description: Created. }
+
+  /contacts/{id}:
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Contacts]
+      summary: Show a contact
+      responses:
+        "200": { description: OK }
+    patch:
+      tags: [Contacts]
+      summary: Update a contact
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:  { type: string }
+                email: { type: string }
+                tags:  { type: array, items: { type: string } }
+      responses:
+        "200": { description: OK }
+    delete:
+      tags: [Contacts]
+      summary: Delete a contact
+      responses:
+        "204": { description: Deleted. }
+
+  /templates:
+    get:
+      tags: [Templates]
+      summary: List templates
+      responses: { "200": { description: OK } }
+    post:
+      tags: [Templates]
+      summary: Create a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, body]
+              properties:
+                name: { type: string }
+                body: { type: string, example: "Hi {{name}}, your order {{order_id}} is ready." }
+      responses: { "201": { description: Created. } }
+
+  /campaigns:
+    get:
+      tags: [Campaigns]
+      summary: List campaigns
+      responses: { "200": { description: OK } }
+    post:
+      tags: [Campaigns]
+      summary: Draft a campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, template_id, group_id]
+              properties:
+                name:        { type: string }
+                template_id: { type: integer }
+                group_id:    { type: integer }
+                scheduled_at: { type: string, format: date-time, nullable: true }
+      responses: { "201": { description: Created. } }
+
+  /campaigns/{id}/launch:
+    post:
+      tags: [Campaigns]
+      summary: Send a drafted campaign now
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses: { "202": { description: Launched. } }
+
+  /reports/usage:
+    get:
+      tags: [Reports]
+      summary: Message counts and spend by day
+      parameters:
+        - in: query
+          name: from
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          schema: { type: string, format: date }
+      responses: { "200": { description: OK } }
+
+  /reports/delivery:
+    get:
+      tags: [Reports]
+      summary: Delivery rate by destination country
+      responses: { "200": { description: OK } }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum PAT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid bearer token.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationError:
+      description: The request body failed validation.
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: "#/components/schemas/Error"
+              - type: object
+                properties:
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items: { type: string }
+    RateLimited:
+      description: Too many requests for this token or IP.
+      headers:
+        Retry-After:
+          schema: { type: integer }
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+
+    Error:
+      type: object
+      required: [title, status]
+      properties:
+        title:  { type: string, example: "Insufficient balance" }
+        status: { type: integer, example: 402 }
+        detail: { type: string, example: "Trial credit exhausted." }
+        type:   { type: string, format: uri, nullable: true }
+
+    User:
+      type: object
+      properties:
+        id:               { type: integer }
+        name:             { type: string }
+        email:            { type: string, format: email }
+        current_team_id:  { type: integer, nullable: true }
+        is_admin:         { type: boolean }
+
+    Team:
+      type: object
+      properties:
+        id:              { type: integer }
+        name:            { type: string }
+        slug:            { type: string }
+        plan_id:         { type: integer, nullable: true }
+        country:         { type: string, nullable: true }
+        trial_ends_at:   { type: string, format: date-time, nullable: true }
+        trial_sms_used:  { type: integer }
+        trial_sms_limit: { type: integer }
+
+    ApiKey:
+      type: object
+      properties:
+        id:            { type: integer }
+        name:          { type: string }
+        abilities:     { type: array, items: { type: string } }
+        last_used_at:  { type: string, format: date-time, nullable: true }
+        expires_at:    { type: string, format: date-time, nullable: true }
+        created_at:    { type: string, format: date-time }
+
+    SendSmsRequest:
+      type: object
+      required: [to, message]
+      properties:
+        to:
+          type: string
+          minLength: 5
+          maxLength: 20
+          description: E.164 recipient. Use `country_hint` when omitting the `+`.
+          example: "+4531139345"
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1530
+          description: "Up to ~10 concatenated SMS parts. `{{placeholders}}` are replaced from `variables`."
+          example: "Hi {{name}}, your ticket is ready."
+        variables:
+          type: object
+          additionalProperties: { type: string }
+          example: { "name": "Umer" }
+        from:
+          type: string
+          maxLength: 16
+          description: |
+            Alphanumeric sender ID (e.g. `PCIT`). Not supported on all
+            SIM providers — falls back to the SIM's own MSISDN when
+            rejected.
+        country_hint:
+          type: string
+          minLength: 2
+          maxLength: 2
+          example: DK
+        gateway_id:
+          type: integer
+          description: Force a specific gateway; omit for automatic pool routing.
+        callback_url:
+          type: string
+          format: uri
+          description: Per-message webhook — overrides the workspace subscriptions.
+        metadata:
+          type: object
+          description: Round-tripped verbatim on all webhooks and `GET /messages/{id}`.
+          example: { "order_id": "SO-8814" }
+
+    SmsMessage:
+      type: object
+      properties:
+        id:            { type: string, description: "ULID" }
+        team_id:       { type: integer }
+        gateway_id:    { type: integer, nullable: true }
+        direction:     { type: string, enum: [inbound, outbound] }
+        from:          { type: string, nullable: true }
+        to:            { type: string }
+        body:          { type: string }
+        status:        { type: string, enum: [queued, sent, delivered, failed, received] }
+        provider_id:   { type: string, nullable: true }
+        cost_ore:      { type: integer, description: "Cost in 1/100 of the workspace currency." }
+        error_code:    { type: string, nullable: true }
+        error_message: { type: string, nullable: true }
+        metadata:      { type: object, additionalProperties: true, nullable: true }
+        received_at:   { type: string, format: date-time, nullable: true }
+        sent_at:       { type: string, format: date-time, nullable: true }
+        delivered_at:  { type: string, format: date-time, nullable: true }
+        failed_at:     { type: string, format: date-time, nullable: true }
+        created_at:    { type: string, format: date-time }
+
+    MessageEvent:
+      type: object
+      properties:
+        id:          { type: integer }
+        message_id:  { type: string }
+        type:        { type: string, enum: [queued, sent, delivered, failed, received] }
+        payload:     { type: object, additionalProperties: true }
+        occurred_at: { type: string, format: date-time }
+
+    Thread:
+      type: object
+      properties:
+        msisdn:  { type: string, example: "+4531139345" }
+        last_at: { type: string, format: date-time }
+        count:   { type: integer }
+
+    Webhook:
+      type: object
+      properties:
+        id:        { type: integer }
+        url:       { type: string, format: uri }
+        events:    { type: array, items: { type: string } }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time }
+
+    PaginatedMessages:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/SmsMessage" }
+        current_page: { type: integer }
+        per_page:     { type: integer }
+        total:        { type: integer }
+        last_page:    { type: integer }
+
+    PaginatedThreads:
+      type: object
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/Thread" }
+        current_page: { type: integer }
+        per_page:     { type: integer }
+        total:        { type: integer }
+        last_page:    { type: integer }
+
+  examples:
+
+    InboundWebhookPayload:
+      summary: "message.received (inbound SMS pushed to your endpoint)"
+      value:
+        event: message.received
+        occurred_at: "2026-09-26T22:59:34Z"
+        data:
+          id: "01M3FR891DWNZTXER7A86BPCWT"
+          direction: inbound
+          from: "+4531139345"
+          to: ""
+          body: "Der"
+          gateway_id: 3
+          received_at: "2026-09-26T20:59:31Z"
+
+    DeliveryWebhookPayload:
+      summary: "message.delivered"
+      value:
+        event: message.delivered
+        occurred_at: "2026-09-26T22:53:57Z"
+        data:
+          id: "01M3FQXY8E8E89APPYMRA3886K"
+          direction: outbound
+          to: "+4531139345"
+          body: "ok"
+          status: delivered
+          delivered_at: "2026-09-26T22:53:57Z"
+          metadata: { order_id: "SO-8814" }

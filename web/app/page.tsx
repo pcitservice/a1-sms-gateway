@@ -17,6 +17,7 @@ export default function Landing() {
       <header className="mx-auto flex max-w-7xl items-center justify-between p-6">
         <Link href="/" className="text-lg font-semibold">{APP_NAME}</Link>
         <nav className="flex items-center gap-3">
+          <Link href="/docs"><Button variant="ghost">API docs</Button></Link>
           <Link href="/login"><Button variant="ghost">Sign in</Button></Link>
           <Link href="/signup"><Button>Start 14-day trial</Button></Link>
         </nav>
@@ -34,7 +35,7 @@ export default function Landing() {
         </p>
         <div className="mt-10 flex justify-center gap-3">
           <Link href="/signup"><Button className="px-6 py-3">Start free</Button></Link>
-          <Link href="/api/documentation"><Button variant="secondary" className="px-6 py-3">API docs</Button></Link>
+          <Link href="/docs"><Button variant="secondary" className="px-6 py-3">API docs</Button></Link>
         </div>
       </section>
 

@@ -16,6 +16,7 @@ const NAV = [
   { href: '/dashboard/automations', label: 'Automations' },
   { href: '/dashboard/webhooks',    label: 'Webhooks' },
   { href: '/dashboard/api-keys',    label: 'API keys' },
+  { href: '/docs',                  label: 'API docs' },
   { href: '/dashboard/billing',     label: 'Billing' },
   { href: '/dashboard/settings',    label: 'Settings' },
   { href: '/dashboard/security',    label: 'Security' },
