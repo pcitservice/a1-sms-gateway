@@ -59,7 +59,7 @@ services:
     # The MQTT broker that TRB140 agents connect to. Plain MQTT is on 1883
     # (loopback) for the api + listener containers; MQTTS is exposed on 8883
     # publicly for internet-facing devices behind CGNAT.
-    entrypoint: ["/docker-entrypoint.sh"]
+    entrypoint: ["/mosquitto/config/docker-entrypoint.sh"]
     command: ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
     volumes:
       - ./docker/mosquitto:/mosquitto/config
