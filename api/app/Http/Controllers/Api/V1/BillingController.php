@@ -43,25 +43,32 @@ class BillingController extends Controller
     {
         $team = app('current_team');
 
-        // Cashier gives us `checkoutCharge()` for one-off, non-subscription
-        // purchases. Metadata drives the webhook grant so the amount stays
-        // in Stripe's hands and never round-trips through the client.
-        $session = $team->checkoutCharge(
-            self::BUNDLE['price_cent'],
-            self::BUNDLE['label'],
-            1,
+        // Explicit line_items lets us bill in EUR regardless of the workspace-
+        // wide CASHIER_CURRENCY. Cashier's checkoutCharge() would generate a
+        // DKK Price and mismatch our EUR session.
+        $session = $team->checkout(
             [
-                'mode'                 => 'payment',
-                'currency'             => self::BUNDLE['currency'],
-                // Cashier auto-creates/uses a Stripe customer for the team;
-                // passing customer_email here would 400 with "You may only
-                // specify one of these parameters: customer, customer_email".
-                'success_url'          => config('app.url').'/dashboard/billing?checkout=success',
-                'cancel_url'           => config('app.url').'/dashboard/billing?checkout=cancelled',
-                'payment_intent_data'  => [
+                [
+                    'quantity'   => 1,
+                    'price_data' => [
+                        'currency'     => self::BUNDLE['currency'],
+                        'unit_amount'  => self::BUNDLE['price_cent'],
+                        'product_data' => [
+                            'name'        => self::BUNDLE['label'],
+                            'description' => sprintf('%d prepaid SMS credits for %s.', self::BUNDLE['sms'], config('app.name')),
+                        ],
+                    ],
+                ],
+            ],
+            [
+                'mode'                => 'payment',
+                'success_url'         => config('app.url').'/dashboard/billing?checkout=success',
+                'cancel_url'          => config('app.url').'/dashboard/billing?checkout=cancelled',
+                'payment_intent_data' => [
                     'metadata' => [
-                        'team_id'    => (string) $team->id,
+                        'team_id'     => (string) $team->id,
                         'sms_credits' => (string) self::BUNDLE['sms'],
+                        'kind'        => 'sms_credits_topup',
                     ],
                 ],
                 'metadata' => [
