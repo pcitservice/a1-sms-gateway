@@ -2,10 +2,10 @@ openapi: 3.1.0
 info:
   title: A1TechFlow SMS API
   version: "1.0.0"
-  summary: Two-way SMS over your own hardware, delivered by REST.
+  summary: Two-way SMS in Denmark, delivered by REST.
   description: |
-    The A1TechFlow SMS API sends and receives SMS through a fleet of
-    physical SIM gateways (Teltonika TRB140 devices). It gives you:
+    The A1TechFlow SMS API sends and receives SMS on Danish carriers. It
+    gives you:
 
       * A single REST endpoint to **send** one SMS or up to 1000 at once.
       * **Inbound** messages pushed to your server as signed webhooks — you
@@ -65,7 +65,7 @@ info:
     by field name.
   contact:
     name: A1TechFlow SMS support
-    email: info@pcit.dk
+    email: info@a1techflow.com
   license:
     name: Proprietary
 
@@ -744,7 +744,7 @@ components:
           type: string
           maxLength: 16
           description: |
-            Alphanumeric sender ID (e.g. `PCIT`). Not supported on all
+            Alphanumeric sender ID (e.g. `Acme`). Not supported on all
             SIM providers — falls back to the SIM's own MSISDN when
             rejected.
         country_hint:

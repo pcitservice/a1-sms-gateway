@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     default: process.env.NEXT_PUBLIC_APP_NAME || 'A1TechFlow SMS',
     template: `%s · ${process.env.NEXT_PUBLIC_APP_NAME || 'A1TechFlow SMS'}`,
   },
-  description: 'Send and receive SMS at scale through Teltonika TRB140 gateways.',
+  description: 'Send and receive SMS in Denmark. Simple REST API, pay-as-you-go, no subscription.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
