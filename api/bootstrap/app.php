@@ -21,6 +21,16 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Trust CyberPanel/OLS + docker nginx that proxy this app; without
+        // this, Laravel sees http:// instead of https:// and signed URL
+        // verification fails.
+        $middleware->trustProxies(at: '*', headers:
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR |
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST |
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT |
+            \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
+        );
+
         // We use bearer tokens (Sanctum personal access tokens), not cookie
         // sessions, so the stateful SPA middleware is intentionally not
         // applied. Adding it would require a CSRF token on every browser
