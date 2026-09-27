@@ -31,9 +31,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     const t = getToken();
     if (!t) { router.push('/login'); return; }
-    api('/auth/me', { token: t })
-      .then(setMe as any)
-      .catch(() => { setToken(null); router.push('/login'); });
+
+    // Log the user out ONLY on a real 401 (Sanctum says "your token is
+    // invalid"). Transient 5xx, timeouts and 429s must NOT sign the user
+    // out — those happen every time we redeploy, hit a throttle, or the
+    // network hiccups, and used to boot people to /login mid-session.
+    async function load(retries = 3) {
+      try {
+        const r = await api('/auth/me', { token: t });
+        setMe(r as any);
+      } catch (e: any) {
+        if (e?.status === 401) {
+          setToken(null);
+          router.push('/login');
+          return;
+        }
+        if (retries > 0) {
+          await new Promise(r => setTimeout(r, 1500));
+          return load(retries - 1);
+        }
+        // Give up gracefully — keep the token, show a soft error banner.
+        setMe({ name: '(offline)', email: '' } as any);
+      }
+    }
+    load();
   }, [router]);
 
   if (!me) return <p className="p-6 text-sm text-slate-500">Loading…</p>;

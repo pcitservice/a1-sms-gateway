@@ -21,9 +21,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     const t = getToken();
     if (!t) { router.push('/login'); return; }
-    api<{ is_admin: boolean }>('/auth/me', { token: t })
-      .then(r => { if (!r.is_admin) { router.push('/dashboard'); } else setMe(r); })
-      .catch(() => { setToken(null); router.push('/login'); });
+
+    async function load(retries = 3) {
+      try {
+        const r = await api<{ is_admin: boolean }>('/auth/me', { token: t });
+        if (!r.is_admin) { router.push('/dashboard'); return; }
+        setMe(r);
+      } catch (e: any) {
+        if (e?.status === 401) {
+          setToken(null);
+          router.push('/login');
+          return;
+        }
+        if (retries > 0) {
+          await new Promise(r => setTimeout(r, 1500));
+          return load(retries - 1);
+        }
+      }
+    }
+    load();
   }, [router]);
 
   if (!me) return <p className="p-6 text-sm text-slate-500">Loading…</p>;
