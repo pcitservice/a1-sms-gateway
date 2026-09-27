@@ -68,11 +68,10 @@ services:
       - ./docker/mosquitto:/mosquitto/config
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
-      # Let's Encrypt cert for sms.a1techflow.com, read-only. Broker rereads
-      # cert files on SIGHUP, so certbot's renew hook can `docker kill -s
-      # HUP a1-sms-mosquitto-1` without a restart.
+      # Let's Encrypt cert for sms.a1techflow.com, read-only. The host has
+      # only fullchain.pem + privkey.pem (Hostinger-issued, no separate
+      # chain), which is enough — clients verify against their OS store.
       - /etc/letsencrypt/live/sms.a1techflow.com:/etc/letsencrypt/live/sms.a1techflow.com:ro
-      - /etc/letsencrypt/archive/sms.a1techflow.com:/etc/letsencrypt/archive/sms.a1techflow.com:ro
     ports:
       # Plain MQTT 1883 is loopback-only — used by the api + listener
       # containers over the docker bridge. Public devices connect on 8883
