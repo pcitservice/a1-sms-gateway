@@ -47,22 +47,103 @@ info:
     ### Rate limits
 
     Send endpoints are throttled per token. When you exceed the limit the
-    API returns `429 Too Many Requests` with a `Retry-After` header.
+    API returns `429 Too Many Requests` with these response headers:
+
+    | Header | Meaning |
+    |---|---|
+    | `X-RateLimit-Limit`     | The bucket size (calls per window). |
+    | `X-RateLimit-Remaining` | Calls left in the current window. |
+    | `Retry-After`           | Seconds until the bucket refills — respect this. |
+
+    Default buckets:
+      * `POST /send-sms`, `POST /send-bulk`: **60 requests / minute per token**.
+      * `POST /auth/*`: **10 requests / minute per IP**.
+      * Public opt-in: **10 requests / minute per IP**.
 
     ### Errors
 
-    Errors use a Problem-JSON style envelope:
+    Every error is a Problem-JSON style envelope:
 
     ```json
     {
-      "title": "Insufficient balance",
+      "title":  "Insufficient balance",
       "status": 402,
-      "detail": "Trial credit exhausted. Top up at /dashboard/billing."
+      "detail": "Trial credit exhausted. Top up at /dashboard/billing.",
+      "type":   "https://sms.a1techflow.com/errors/insufficient-balance"
     }
     ```
 
-    Validation errors (`422`) also include a Laravel-style `errors` map keyed
-    by field name.
+    Common statuses:
+
+    | Status | Meaning | What to do |
+    |---|---|---|
+    | `400` | Malformed request (bad JSON, wrong shape). | Fix the payload. |
+    | `401` | Missing or invalid bearer token. | Issue a new key. |
+    | `402` | Out of SMS credits. | Buy a top-up: `POST /billing/checkout`. |
+    | `403` | Token lacks the required ability, or account suspended. | Widen the token's abilities or contact support. |
+    | `404` | Resource not found (message id, thread, group). | Check the id. |
+    | `409` | Conflict — e.g. cancelling a message that already sent. | Refresh state. |
+    | `422` | Validation error. Includes an `errors` map keyed by field name. | Fix the offending fields. |
+    | `429` | Rate-limited. | Back off and honour `Retry-After`. |
+    | `5xx` | Something is wrong on our side. | Retry with exponential backoff. |
+
+    ### Retries and idempotency
+
+    Retry safely on `429` and `5xx`. `POST /send-sms` is not automatically
+    idempotent — if you retry after a network error without a stable
+    identifier, you may send twice. Pass a stable value in the
+    `metadata.client_ref` field and check it before retrying.
+
+    ### Test data
+
+    While the account is on the trial plan, all sends debit `trial_sms_used`
+    up to `trial_sms_limit` (25 SMS). To exercise the paywall flow, exhaust
+    the trial (`trial_sms_used = trial_sms_limit`) — the next `POST /send-sms`
+    returns `402` and the dashboard automatically pops the top-up modal.
+
+    ### Webhook signature verification
+
+    Every webhook body sent to your endpoint carries an
+    `X-A1Sms-Signature` header shaped like:
+
+    ```
+    X-A1Sms-Signature: t=1727443512,v1=6ab7fbc2d1e5a9c8...
+    ```
+
+    To verify:
+
+    ```pseudocode
+    ts   = value of "t=" in the header
+    sig  = value of "v1=" in the header
+    body = raw request body, exactly as received (do NOT re-serialize)
+    expected = hex(hmac_sha256(subscription_secret, ts + "." + body))
+    if !constant_time_equals(sig, expected):   reject
+    if now() - ts > 300:                        reject (older than 5 min)
+    ```
+
+    Node.js:
+
+    ```js
+    const crypto = require('crypto');
+    function verify(header, rawBody, secret) {
+      const [t, v1] = header.split(',').map(p => p.split('=')[1]);
+      const expected = crypto.createHmac('sha256', secret)
+        .update(`${t}.${rawBody}`).digest('hex');
+      const ok = crypto.timingSafeEqual(Buffer.from(v1), Buffer.from(expected));
+      const fresh = Math.abs(Date.now() / 1000 - Number(t)) < 300;
+      return ok && fresh;
+    }
+    ```
+
+    PHP:
+
+    ```php
+    function verify(string $header, string $rawBody, string $secret): bool {
+      [$t, $v1] = array_map(fn($p) => explode('=', $p)[1], explode(',', $header));
+      $expected = hash_hmac('sha256', "$t.$rawBody", $secret);
+      return hash_equals($v1, $expected) && abs(time() - (int) $t) < 300;
+    }
+    ```
   contact:
     name: A1TechFlow SMS support
     email: info@a1techflow.com
@@ -266,6 +347,74 @@ paths:
         Long bodies (over 160 GSM-7 / 70 UCS-2 characters) are split into
         concatenated parts by the gateway. You are billed one credit per
         160-character segment.
+
+        Set `send_at` to a future ISO 8601 timestamp to schedule the send
+        — the row lives with `status: scheduled` and fires when its time
+        arrives. Set `track_links: true` to rewrite `http(s)://…` URLs in
+        the body to trackable short links (`/l/{code}`). Segment count and
+        cost are computed on the rewritten body.
+      x-codeSamples:
+        - lang: Shell
+          label: curl
+          source: |
+            curl -X POST https://sms.a1techflow.com/api/v1/send-sms \
+              -H "Authorization: Bearer $A1SMS_KEY" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "to": "+4531139345",
+                "message": "Your order {{order}} is ready.",
+                "variables": { "order": "SO-8814" },
+                "metadata":  { "order_id": "SO-8814" }
+              }'
+        - lang: JavaScript
+          label: Node.js
+          source: |
+            const res = await fetch('https://sms.a1techflow.com/api/v1/send-sms', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${process.env.A1SMS_KEY}`,
+                'Content-Type':  'application/json',
+              },
+              body: JSON.stringify({
+                to:       '+4531139345',
+                message:  'Your order {{order}} is ready.',
+                variables:{ order: 'SO-8814' },
+                metadata: { order_id: 'SO-8814' },
+              }),
+            });
+            if (!res.ok) throw new Error(await res.text());
+            const { id, status } = await res.json();
+        - lang: PHP
+          source: |
+            $resp = Http::withToken(env('A1SMS_KEY'))
+              ->acceptJson()
+              ->post('https://sms.a1techflow.com/api/v1/send-sms', [
+                'to'        => '+4531139345',
+                'message'   => 'Your order {{order}} is ready.',
+                'variables' => ['order' => 'SO-8814'],
+                'metadata'  => ['order_id' => 'SO-8814'],
+              ]);
+            $resp->throw();
+            $msgId = $resp->json('id');
+        - lang: Python
+          source: |
+            import os, requests
+            r = requests.post(
+              'https://sms.a1techflow.com/api/v1/send-sms',
+              headers={
+                'Authorization': f'Bearer {os.environ["A1SMS_KEY"]}',
+                'Content-Type':  'application/json',
+              },
+              json={
+                'to':        '+4531139345',
+                'message':   'Your order {{order}} is ready.',
+                'variables': {'order': 'SO-8814'},
+                'metadata':  {'order_id': 'SO-8814'},
+              },
+              timeout=10,
+            )
+            r.raise_for_status()
+            msg_id = r.json()['id']
       requestBody:
         required: true
         content:
