@@ -1,5 +1,10 @@
 <?php
 
+// Gateway's `password` and `mqtt_password` attributes are cast as encrypted,
+// which needs Laravel's encrypter bound in the container — so this unit test
+// opts into the framework test case rather than the bare PHPUnit one.
+uses(Tests\TestCase::class);
+
 use App\Domain\Gateway\DTO\OutgoingMessage;
 use App\Domain\Gateway\Drivers\Trb140Driver;
 use App\Models\Gateway;
