@@ -11,6 +11,7 @@ const NAV = [
   { href: '/dashboard/send',      label: 'Send SMS' },
   { href: '/dashboard/outbox',    label: 'Outbox' },
   { href: '/dashboard/inbox',     label: 'Inbox' },
+  { href: '/dashboard/messages',  label: 'Messages' },
   { href: '/dashboard/contacts',  label: 'Contacts' },
   { href: '/dashboard/campaigns',   label: 'Campaigns' },
   { href: '/dashboard/templates',   label: 'Templates' },
