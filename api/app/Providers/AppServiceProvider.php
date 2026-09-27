@@ -29,10 +29,16 @@ class AppServiceProvider extends ServiceProvider
         // SMS-specific throttle: per-token, per-team plan tier, configurable
         // via team->plan->rate_per_minute. Default 120 (Pro plan).
         RateLimiter::for('sms', function (Request $request) {
-            $team = $request->user()?->currentTeam;
-            $perMin = (int) ($team?->plan?->rate_per_minute ?? 30);
-            return Limit::perMinute(max(1, $perMin))
-                ->by($team?->id ?? $request->ip());
+            $team  = $request->user()?->currentTeam;
+            // Bucket key precedence: token id > team id > IP. Per-token means
+            // one runaway integration cannot starve the workspace's other
+            // API keys — a real multi-tenant SaaS invariant.
+            $tokenId = $request->user()?->currentAccessToken()?->id;
+            $bucket  = $tokenId ? "sms:token:{$tokenId}"
+                     : ($team    ? "sms:team:{$team->id}"
+                                 : "sms:ip:{$request->ip()}");
+            $perMin  = (int) ($team?->plan?->rate_per_minute ?? 60);
+            return Limit::perMinute(max(1, $perMin))->by($bucket);
         });
 
         // Signup is harshly throttled per IP — 5/hr, with a 1/min burst limit

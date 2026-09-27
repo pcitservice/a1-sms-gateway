@@ -68,11 +68,17 @@ services:
       - ./docker/mosquitto:/mosquitto/config
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
+      # Let's Encrypt cert for sms.a1techflow.com, read-only. Broker rereads
+      # cert files on SIGHUP, so certbot's renew hook can `docker kill -s
+      # HUP a1-sms-mosquitto-1` without a restart.
+      - /etc/letsencrypt/live/sms.a1techflow.com:/etc/letsencrypt/live/sms.a1techflow.com:ro
+      - /etc/letsencrypt/archive/sms.a1techflow.com:/etc/letsencrypt/archive/sms.a1techflow.com:ro
     ports:
-      # Temporary: 1883 bound to all interfaces so external TRB agents can
-      # reach it. Auth is required (password_file). Upgrade to 8883/TLS once
-      # sms.pcitservice.dk cert is mounted.
-      - "${MQTT_HOST_PORT:-1883}:1883"
+      # Plain MQTT 1883 is loopback-only — used by the api + listener
+      # containers over the docker bridge. Public devices connect on 8883
+      # (TLS) so credentials never traverse the internet in plaintext.
+      - "127.0.0.1:${MQTT_HOST_PORT:-1883}:1883"
+      - "8883:8883"
       # Public 8883 is added once TLS certs are mounted — see mosquitto.conf.
       # - "${MQTTS_HOST_PORT:-8883}:8883"
     healthcheck:

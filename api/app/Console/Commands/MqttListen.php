@@ -175,7 +175,48 @@ class MqttListen extends Command
         ]);
 
         if ($gateway->team) app(SmsBilling::class)->recordIncoming($gateway->team);
+
+        // Danish + international STOP-word handling. Consumer Ombudsman
+        // requires marketing recipients to opt out via a single STOP reply.
+        // We match on the whole trimmed body (case-insensitive) to avoid
+        // eating legitimate messages that happen to contain the word 'stop'.
+        $trimmed = strtoupper(trim($bodyText));
+        if (in_array($trimmed, ['STOP', 'STOPP', 'AFMELD', 'UNSUBSCRIBE'], true)) {
+            $this->autoUnsubscribe(
+                team:    $gateway->team,
+                msisdn:  (string) ($body['from'] ?? ''),
+                trigger: $sms->id,
+            );
+        }
+
         event(new MessageReceived($sms));
+    }
+
+    private function autoUnsubscribe(?\App\Models\Team $team, string $msisdn, string $trigger): void
+    {
+        if (! $team || $msisdn === '') return;
+
+        \App\Models\Contact::query()->withoutGlobalScopes()
+            ->where('team_id', $team->id)
+            ->where('msisdn', $msisdn)
+            ->update([
+                'opt_in_status' => 'opted_out',
+                'opt_out_at'    => now(),
+            ]);
+
+        \App\Models\AuditLog::create([
+            'team_id'      => $team->id,
+            'action'       => 'contact.opted_out',
+            'subject_type' => \App\Models\Contact::class,
+            'subject_id'   => null,
+            'payload'      => [
+                'msisdn'  => $msisdn,
+                'source'  => 'sms_stop',
+                'trigger' => $trigger,
+            ],
+            'occurred_at'  => now(),
+        ]);
+        $this->info("[LISTENER] STOP received from {$msisdn} → opted_out");
     }
 
     private function onHeartbeat(string $topic, string $payload): void
