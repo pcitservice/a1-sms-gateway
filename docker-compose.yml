@@ -73,10 +73,12 @@ services:
       # chain), which is enough — clients verify against their OS store.
       - /etc/letsencrypt/live/sms.a1techflow.com:/etc/letsencrypt/live/sms.a1techflow.com:ro
     ports:
-      # Plain MQTT 1883 is loopback-only — used by the api + listener
-      # containers over the docker bridge. Public devices connect on 8883
-      # (TLS) so credentials never traverse the internet in plaintext.
-      - "127.0.0.1:${MQTT_HOST_PORT:-1883}:1883"
+      # 1883 is temporarily still publicly reachable because the running
+      # TRB agent was provisioned on plain MQTT. New devices should be
+      # provisioned on 8883 (TLS) instead. Once the last plain client has
+      # migrated, replace the next line with "127.0.0.1:1883:1883" and
+      # only 8883 stays externally exposed.
+      - "${MQTT_HOST_PORT:-1883}:1883"
       - "8883:8883"
       # Public 8883 is added once TLS certs are mounted — see mosquitto.conf.
       # - "${MQTTS_HOST_PORT:-8883}:8883"
