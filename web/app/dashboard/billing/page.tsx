@@ -4,6 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { api, getToken } from '@/lib/api';
+import { formatDate } from '@/lib/datetime';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -77,7 +78,7 @@ function BillingInner() {
           {data.trial.in_trial && (
             <span>
               Trial: <strong className="text-slate-900 dark:text-slate-100">{data.trial.remaining}</strong> of {data.trial.limit} remaining
-              {data.trial.ends_at && <> · ends {new Date(data.trial.ends_at).toLocaleDateString()}</>}
+              {data.trial.ends_at && <> · ends {formatDate(data.trial.ends_at)}</>}
             </span>
           )}
         </div>

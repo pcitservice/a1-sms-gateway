@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api, getToken } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 import { Card } from '@/components/ui/card';
 
 type Financial = { mrr_ore: number; arr_ore: number; active_subs: number; active_trials: number; churn_30d: number };
@@ -93,7 +94,7 @@ export default function AdminOverview() {
                     <span className={`text-xs font-medium ${d.status === 'online' ? 'text-emerald-600' : 'text-slate-500'}`}>{d.status}</span>
                   </td>
                   <td className="px-4 py-2 text-xs text-slate-500">
-                    {d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : '—'}
+                    {d.last_seen_at ? formatDateTime(d.last_seen_at) : '—'}
                   </td>
                 </tr>
               ))}

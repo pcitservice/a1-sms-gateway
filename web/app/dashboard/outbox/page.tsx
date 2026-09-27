@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, getToken } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 import { Card } from '@/components/ui/card';
 
 type OutboundRow = {
@@ -57,7 +58,7 @@ export default function OutboxPage() {
                     <StatusPill status={m.status} />
                   </td>
                   <td className="px-4 py-3 text-xs">
-                    {m.send_at ? new Date(m.send_at).toLocaleString() :
+                    {m.send_at ? formatDateTime(m.send_at) :
                      m.queued_at ? <em className="text-slate-500">now (queued)</em> :
                      <em className="text-slate-500">now</em>}
                   </td>

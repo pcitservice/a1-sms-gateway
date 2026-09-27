@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { api, getToken } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 
@@ -77,7 +78,7 @@ export default function ThreadPage() {
                   }`}>
                     <div className="text-sm whitespace-pre-wrap">{m.body}</div>
                     <div className={`mt-1 text-[10px] ${isIn ? 'text-slate-500' : 'text-white/70'}`}>
-                      {new Date(stamp).toLocaleString()} · {m.status}
+                      {formatDateTime(stamp)} · {m.status}
                     </div>
                   </div>
                 </li>

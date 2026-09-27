@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { api, getToken } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 
 type Template = { id: number; name: string; body: string };
 
@@ -49,7 +50,7 @@ export default function SendPage() {
         token: getToken(),
       });
       const label = res.status === 'scheduled'
-        ? `Scheduled for ${new Date(sendAt).toLocaleString()} · id ${res.id}`
+        ? `Scheduled for ${formatDateTime(new Date(sendAt).toISOString())} · id ${res.id}`
         : `Queued (${res.status}) · id ${res.id}`;
       setResult({ ok: true, text: label });
       setTo(''); setMessage(''); setSendAt(''); setScheduleOn(false);

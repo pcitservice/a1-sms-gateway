@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 import { api, getToken } from '@/lib/api';
+import { formatDate, formatDateTime } from '@/lib/datetime';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -78,8 +79,8 @@ export default function ApiKeysPage() {
                 <div>
                   <div className="font-medium">{t.name}</div>
                   <div className="text-xs text-slate-500">
-                    last used {t.last_used_at ? new Date(t.last_used_at).toLocaleString() : 'never'}
-                    {t.expires_at ? ` · expires ${new Date(t.expires_at).toLocaleDateString()}` : ''}
+                    last used {t.last_used_at ? formatDateTime(t.last_used_at) : 'never'}
+                    {t.expires_at ? ` · expires ${formatDate(t.expires_at)}` : ''}
                   </div>
                 </div>
                 <Button variant="danger" onClick={() => revokeKey.mutate(t.id)}>Revoke</Button>

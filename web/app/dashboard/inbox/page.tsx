@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api, getToken } from '@/lib/api';
+import { formatDateTime } from '@/lib/datetime';
 import { Card } from '@/components/ui/card';
 
 type Thread = { msisdn: string; last_at: string; count: number };
@@ -34,7 +35,7 @@ export default function InboxPage() {
                     <div className="font-medium">{t.msisdn}</div>
                     <div className="text-xs text-slate-500">{t.count} message{t.count === 1 ? '' : 's'}</div>
                   </div>
-                  <div className="text-xs text-slate-500">{new Date(t.last_at).toLocaleString()}</div>
+                  <div className="text-xs text-slate-500">{formatDateTime(t.last_at)}</div>
                 </Link>
               </li>
             ))}
