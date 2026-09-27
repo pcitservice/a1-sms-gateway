@@ -1,12 +1,31 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { api } from '@/lib/api';
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? '';
+
+// Minimal typing for the Cloudflare-injected global.
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (el: HTMLElement | string, opts: {
+        sitekey: string;
+        theme?: 'light' | 'dark' | 'auto';
+        callback?: (token: string) => void;
+        'error-callback'?: () => void;
+        'expired-callback'?: () => void;
+      }) => string;
+      reset: (widgetId?: string) => void;
+    };
+  }
+}
 
 export default function SignupPage() {
   // useSearchParams must be inside Suspense in Next 15, or the prerender fails.
@@ -28,11 +47,39 @@ function SignupForm() {
   const [dkConfirmed, setDkConfirmed] = useState(false);
   const [error,    setError]    = useState<string | null>(null);
   const [loading,  setLoading]  = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<HTMLDivElement>(null);
+  const widgetIdRef = useRef<string | null>(null);
+
+  // Render Turnstile once the script has loaded. When the key isn't set
+  // (dev builds), the widget is skipped entirely and the backend
+  // middleware also no-ops, so signup keeps working locally.
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    const tryRender = () => {
+      if (window.turnstile && captchaRef.current && !widgetIdRef.current) {
+        widgetIdRef.current = window.turnstile.render(captchaRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          theme: 'auto',
+          callback: (t) => setCaptchaToken(t),
+          'expired-callback': () => setCaptchaToken(null),
+          'error-callback':   () => setCaptchaToken(null),
+        });
+      }
+    };
+    tryRender();
+    const id = window.setInterval(tryRender, 500);
+    return () => window.clearInterval(id);
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!dkConfirmed) {
       setError('This service is currently available for Danish businesses only.');
+      return;
+    }
+    if (TURNSTILE_SITE_KEY && !captchaToken) {
+      setError('Please complete the security check before continuing.');
       return;
     }
     setLoading(true); setError(null);
@@ -45,6 +92,7 @@ function SignupForm() {
           password,
           team_name: team || undefined,
           country:   'DK',
+          'cf-turnstile-response': captchaToken,
         }),
       });
       router.push(`/verify-email?email=${encodeURIComponent(email)}`);
@@ -66,7 +114,7 @@ function SignupForm() {
     <main className="grid min-h-screen place-items-center bg-slate-50 dark:bg-slate-950">
       <Card className="w-full max-w-md">
         <h1 className="text-2xl font-semibold">Start your 14-day trial</h1>
-        <p className="mt-1 text-sm text-slate-500">50 free SMS, no credit card. Plan: <strong>{plan}</strong></p>
+        <p className="mt-1 text-sm text-slate-500">25 free SMS, no credit card. Plan: <strong>{plan}</strong></p>
 
         <div className="mt-4 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
           <span aria-hidden>🇩🇰</span>
@@ -105,6 +153,12 @@ function SignupForm() {
             <span>My business operates in Denmark and I will only send SMS from a Danish sender.</span>
           </label>
 
+          {TURNSTILE_SITE_KEY && (
+            <div className="flex justify-center">
+              <div ref={captchaRef} />
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-600">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading || !dkConfirmed}>
             {loading ? 'Creating…' : 'Create workspace'}
@@ -114,6 +168,13 @@ function SignupForm() {
           Already have an account? <Link href="/login" className="text-brand-600 hover:underline">Sign in</Link>
         </p>
       </Card>
+
+      {TURNSTILE_SITE_KEY && (
+        <Script
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+          strategy="afterInteractive"
+        />
+      )}
     </main>
   );
 }
