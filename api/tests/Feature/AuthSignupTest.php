@@ -5,6 +5,10 @@ use App\Models\Team;
 use App\Models\User;
 
 beforeEach(function () {
+    // Pin the trial size regardless of what the runner's .env picked up.
+    config()->set('sms.trial.sms_limit', 25);
+    config()->set('sms.trial.days', 14);
+
     Plan::create([
         'slug' => 'free', 'name' => 'Free', 'price_ore' => 0, 'interval' => 'none',
         'sms_included' => 25, 'rate_per_minute' => 6,
