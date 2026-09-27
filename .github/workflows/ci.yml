@@ -36,6 +36,10 @@ jobs:
       - name: Install
         working-directory: api
         run: |
+          # bootstrap/cache and storage/framework/* are gitignored; recreate.
+          mkdir -p bootstrap/cache
+          mkdir -p storage/framework/{cache,sessions,testing,views}
+          mkdir -p storage/logs
           # .env must exist BEFORE composer's post-autoload-dump script fires,
           # or artisan package:discover fails on a fresh checkout.
           cp .env.example .env
@@ -70,7 +74,9 @@ jobs:
           NEXT_PUBLIC_APP_NAME: 'A1TechFlow SMS'
         run: |
           # `npm ci` needs a lockfile; the web folder is gitignored past
-          # node_modules but the lockfile isn't checked in yet — install fresh.
-          npm install --no-audit --no-fund
+          # node_modules but the lockfile isn't checked in yet — install
+          # fresh. --legacy-peer-deps lets react@19.0.0 coexist with
+          # next@15.0.0 (which advertises a react rc as its peer).
+          npm install --no-audit --no-fund --legacy-peer-deps
           npm run lint --if-present
           npm run build
