@@ -13,7 +13,11 @@ return Application::configure(basePath: dirname(__DIR__))
         api:      __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         channels: __DIR__.'/../routes/channels.php',
-        health:   '/api/v1/health',
+        // We serve /api/v1/health from HealthController with a rich JSON body
+        // (db + redis probes + version). Laravel 11's built-in health path
+        // would return an HTML "Application up" page and shadow our route,
+        // so we register it at /up instead to keep both usable.
+        health:    '/up',
         apiPrefix: 'api',
         then: function () {
             Illuminate\Support\Facades\Route::middleware('web')
