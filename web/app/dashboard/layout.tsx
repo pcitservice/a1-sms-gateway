@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 const NAV = [
   { href: '/dashboard',           label: 'Overview' },
   { href: '/dashboard/send',      label: 'Send SMS' },
+  { href: '/dashboard/outbox',    label: 'Outbox' },
   { href: '/dashboard/inbox',     label: 'Inbox' },
   { href: '/dashboard/contacts',  label: 'Contacts' },
   { href: '/dashboard/campaigns',   label: 'Campaigns' },

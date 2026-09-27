@@ -32,6 +32,41 @@ class MessageController extends Controller
         return response()->json($message->events()->get());
     }
 
+    public function outbox(Request $request)
+    {
+        return response()->json(
+            SmsMessage::query()
+                ->where('direction', 'outbound')
+                ->whereIn('status', ['scheduled', 'queued', 'sending'])
+                ->orderByRaw("CASE status WHEN 'scheduled' THEN 1 WHEN 'queued' THEN 2 ELSE 3 END")
+                ->orderBy('send_at')
+                ->paginate($request->integer('per_page', 25))
+        );
+    }
+
+    public function cancel(string $id)
+    {
+        $msg = SmsMessage::findOrFail($id);
+        if (! in_array($msg->status, ['scheduled', 'queued'], true)) {
+            return response()->json([
+                'title'  => 'Cannot cancel',
+                'status' => 409,
+                'detail' => "Message is already in status \"{$msg->status}\".",
+            ], 409);
+        }
+        // Refund the credit that dispatch() debited. Trial doesn't refund.
+        if ((int) $msg->cost_ore > 0 && $msg->team) {
+            $msg->team->increment('sms_credits', 1);
+        }
+        $msg->forceFill([
+            'status'        => 'cancelled',
+            'failed_at'     => now(),
+            'error_code'    => 'user_cancelled',
+            'error_message' => 'Cancelled by user before dispatch.',
+        ])->save();
+        return response()->json($msg);
+    }
+
     public function linkClicks(string $id)
     {
         $message = SmsMessage::findOrFail($id);

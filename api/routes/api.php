@@ -77,10 +77,12 @@ Route::prefix('v1')->group(function () {
         Route::post('send-bulk',  [SendController::class, 'bulk'])->middleware('throttle:sms');
 
         // Messages.
-        Route::get('messages',                [MessageController::class, 'index']);
-        Route::get('messages/{id}',           [MessageController::class, 'show']);
-        Route::get('messages/{id}/events',    [MessageController::class, 'events']);
-        Route::get('messages/{id}/link-clicks', [MessageController::class, 'linkClicks']);
+        Route::get   ('messages',                 [MessageController::class, 'index']);
+        Route::get   ('messages/outbox',          [MessageController::class, 'outbox']);
+        Route::get   ('messages/{id}',            [MessageController::class, 'show']);
+        Route::delete('messages/{id}',            [MessageController::class, 'cancel']);
+        Route::get   ('messages/{id}/events',     [MessageController::class, 'events']);
+        Route::get   ('messages/{id}/link-clicks', [MessageController::class, 'linkClicks']);
         Route::get('inbox/threads',           [MessageController::class, 'threads']);
         Route::get('inbox/threads/{contact}', [MessageController::class, 'thread']);
 
